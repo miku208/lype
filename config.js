@@ -23,7 +23,7 @@ const APP_CONFIG = {
   // Admin path is an obscurity convenience, NOT a security boundary.
   // Real protection comes from Supabase Auth + RLS (see auth.js / schema.sql).
   adminPath: "/manage-x7k/",
-  siteUrl: "http://localhost:3000",
+  siteUrl: "https://lype-rho.vercel.app/",
   storeNameFallback: "Lyppe Store",
   storeDescriptionFallback: "Katalog produk digital Lyppe Store.",
   productDescriptionFallback: "Lihat detail produk di Lyppe Store.",
