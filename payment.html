@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pembayaran — Lyppe Store</title>
+  <meta name="description" content="Selesaikan pembayaran manual via QRIS atau DANA di Lyppe Store." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#0f0f0e" />
+
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/assets/favicon-32x32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="/assets/favicon-16x16.png" sizes="16x16" type="image/png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/payment.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="brand brand--has-logo">
+        <img src="assets/logo.png" alt="Logo" class="brand-logo" onerror="this.remove(); this.parentElement.classList.remove('brand--has-logo')" />
+        <span id="brandName">Lyppe Store</span>
+      </a>
+      <nav class="site-nav" aria-label="Navigasi utama">
+        <a href="index.html">Produk</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <p class="state-message loading-text" id="paymentLoading">Memuat...</p>
+
+      <section class="payment-page" id="paymentSection" hidden>
+        <a class="back-link" id="backToProduct" href="index.html">← Kembali ke Produk</a>
+
+        <div class="order-summary">
+          <div class="order-thumb">
+            <img id="orderImage" src="" alt="" />
+          </div>
+          <div class="order-info">
+            <span class="eyebrow">Ringkasan Pesanan</span>
+            <h1 id="orderName"></h1>
+            <p class="order-desc" id="orderDescription"></p>
+            <div class="order-price" id="orderPrice"></div>
+          </div>
+        </div>
+
+        <div class="payment-method-block">
+          <h2>Metode Pembayaran</h2>
+
+          <div class="method-toggle" role="tablist" aria-label="Pilih metode pembayaran">
+            <button type="button" class="method-btn active" id="methodQrisBtn" role="tab" aria-selected="true">
+              QRIS
+            </button>
+            <button type="button" class="method-btn" id="methodDanaBtn" role="tab" aria-selected="false">
+              DANA
+            </button>
+          </div>
+
+          <div class="method-panel" id="qrisPanel">
+            <div class="qris-frame" id="qrisFrame" hidden>
+              <img id="qrisImage" src="" alt="QRIS pembayaran" />
+            </div>
+            <p class="method-empty" id="qrisEmptyState" hidden>QRIS belum tersedia.</p>
+          </div>
+
+          <div class="method-panel" id="danaPanel" hidden>
+            <div class="dana-row" id="danaRow" hidden>
+              <div>
+                <span class="dana-label">Nomor DANA</span>
+                <div class="dana-number" id="danaNumber">–</div>
+              </div>
+              <button type="button" class="btn secondary sm" id="copyDanaBtn">Salin Nomor</button>
+            </div>
+            <p class="method-empty" id="danaEmptyState" hidden>DANA belum tersedia.</p>
+          </div>
+
+          <div class="payment-note" id="paymentNoteBox">
+            <p id="paymentNoteText">NOTE : JIKA SUDAH BAYAR - HUBUNGI ADMIN</p>
+          </div>
+
+          <a class="btn full" id="contactAdminBtn" href="#" target="_blank" rel="noopener">
+            Hubungi Admin →
+          </a>
+        </div>
+      </section>
+
+      <section class="not-found" id="paymentNotFound" hidden>
+        <h1>Produk tidak ditemukan</h1>
+        <p>Produk yang ingin kamu bayar tidak tersedia atau sudah tidak aktif.</p>
+        <a class="btn" href="index.html">Kembali ke Katalog</a>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span id="footerStoreName">© Lyppe Store</span>
+    </div>
+  </footer>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="supabase.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/payment.js"></script>
+</body>
+</html>

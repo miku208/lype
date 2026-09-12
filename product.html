@@ -39,11 +39,15 @@
   -->
 
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/product.css" />
 </head>
 <body>
   <header class="site-header">
     <div class="container">
-      <a href="index.html" class="brand">Lyppe Store</a>
+      <a href="index.html" class="brand brand--has-logo">
+        <img src="assets/logo.png" alt="Logo" class="brand-logo" onerror="this.remove(); this.parentElement.classList.remove('brand--has-logo')" />
+        <span id="brandName">Lyppe Store</span>
+      </a>
       <nav class="site-nav" aria-label="Navigasi utama">
         <a href="index.html">Produk</a>
       </nav>
@@ -59,26 +63,20 @@
           <img id="productImage" src="" alt="" />
         </div>
         <div>
-          <span class="eyebrow">Produk Digital</span>
+          <span class="eyebrow" id="productCategory">Produk Digital</span>
           <h1 id="productName"></h1>
           <div class="price" id="productPrice"></div>
           <p class="description" id="productDescription"></p>
 
           <div class="action-row">
-            <a class="btn" id="contactWhatsApp" href="#" target="_blank" rel="noopener">
-              Hubungi Admin →
+            <a class="btn" id="beliButton" href="#">
+              <span aria-hidden="true">🛒</span>&nbsp;Beli
             </a>
-            <a class="btn secondary" href="index.html">Kembali ke Katalog</a>
+            <a class="btn secondary" id="contactWhatsApp" href="#" target="_blank" rel="noopener" hidden>
+              Tanya Admin →
+            </a>
           </div>
-
-          <div class="payment-box" id="qrisBox" hidden>
-            <h2>Pembayaran</h2>
-            <p class="hint">Scan QRIS untuk melakukan pembayaran.</p>
-            <div class="qris-frame">
-              <img id="qrisImage" src="" alt="" />
-            </div>
-            <p class="after-note">Setelah pembayaran, hubungi admin.</p>
-          </div>
+          <a class="back-link" href="index.html">← Kembali ke Katalog</a>
         </div>
       </section>
 
@@ -98,6 +96,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
+  <script src="supabase.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/product.js"></script>
 </body>

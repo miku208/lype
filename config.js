@@ -7,11 +7,10 @@
  * NEVER put the service_role key, database password, or any secret
  * credential in this file or anywhere in frontend code. The anon key
  * is safe to expose publicly as long as Row Level Security (RLS) is
- * configured correctly in Supabase (see schema.sql).
+ * configured correctly in Supabase (see supabase/schema.sql).
  *
- * When this project migrates to Next.js on Vercel, move these values
- * into environment variables (NEXT_PUBLIC_SUPABASE_URL,
- * NEXT_PUBLIC_SUPABASE_ANON_KEY, etc.) instead of a static file.
+ * This file only holds plain config values. The actual Supabase
+ * client is created in supabase.js, which reads SUPABASE_CONFIG below.
  */
 
 const SUPABASE_CONFIG = {
@@ -21,26 +20,21 @@ const SUPABASE_CONFIG = {
 
 const APP_CONFIG = {
   // Admin path is an obscurity convenience, NOT a security boundary.
-  // Real protection comes from Supabase Auth + RLS (see auth.js / schema.sql).
+  // Real protection comes from Supabase Auth + RLS (see auth.js / supabase/schema.sql).
   adminPath: "/manage-x7k/",
-  siteUrl: "https://lype-rho.vercel.app/",
+  siteUrl: "https://lyppemarket.web.id/",
   storeNameFallback: "Lyppe Store",
-  storeDescriptionFallback: "Katalog produk digital Lyppe Store.",
+  storeDescriptionFallback: "Digital product simpel, cepat, dan mudah.",
   productDescriptionFallback: "Lihat detail produk di Lyppe Store.",
   defaultOgImage: "/assets/og-default.png",
+  defaultPaymentNote: "NOTE : JIKA SUDAH BAYAR - HUBUNGI ADMIN",
 };
 
 const IMAGE_CONFIG = {
   // Which provider uploadProductImage() (in admin.js) should use.
   // Swap this value to change providers without touching call sites.
+  // Structured so it can later be swapped for Supabase Storage.
   provider: "kappa",
   maxFileSizeBytes: 5 * 1024 * 1024, // 5MB
-  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
 };
-
-// Single shared Supabase client instance, used by every page.
-// Requires the Supabase JS CDN script to be loaded before this file.
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_CONFIG.url,
-  SUPABASE_CONFIG.anonKey
-);

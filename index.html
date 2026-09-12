@@ -45,7 +45,10 @@
 <body>
   <header class="site-header">
     <div class="container">
-      <a href="index.html" class="brand" id="brandName">Lyppe Store</a>
+      <a href="index.html" class="brand brand--has-logo">
+        <img src="assets/logo.png" alt="Logo" class="brand-logo" onerror="this.remove(); this.parentElement.classList.remove('brand--has-logo')" />
+        <span id="brandName">Lyppe Store</span>
+      </a>
       <nav class="site-nav" aria-label="Navigasi utama">
         <a href="index.html">Produk</a>
       </nav>
@@ -96,6 +99,18 @@
           </div>
           <span class="count-chip" id="productCountChip" hidden><strong id="productCountValue">0</strong>&nbsp;produk</span>
         </div>
+
+        <div class="catalog-controls">
+          <div class="search-box">
+            <input type="search" id="productSearchInput" placeholder="Cari produk digital..." aria-label="Cari produk" />
+          </div>
+          <div class="category-filter" id="categoryFilter" role="tablist" aria-label="Filter kategori">
+            <button type="button" class="chip active" data-slug="" role="tab" aria-selected="true">
+              Semua <span class="chip-count" id="chipCountAll">0</span>
+            </button>
+          </div>
+        </div>
+
         <div class="product-grid" id="productGrid">
           <p class="state-message loading-text">Memuat produk...</p>
         </div>
@@ -110,8 +125,39 @@
     </div>
   </footer>
 
+  <!-- Product quick-view: bottom sheet that slides up when a product
+       card is tapped / "Lihat Produk" is clicked. -->
+  <div class="sheet-overlay" id="productSheetOverlay" hidden>
+    <div class="product-sheet" id="productSheet" role="dialog" aria-modal="true" aria-labelledby="sheetProductName">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <button type="button" class="sheet-close" id="sheetCloseBtn" aria-label="Tutup">✕</button>
+
+      <div class="sheet-scroll">
+        <div class="sheet-image-frame">
+          <img id="sheetProductImage" src="" alt="" />
+        </div>
+        <div class="sheet-body">
+          <span class="eyebrow" id="sheetProductCategory">Produk Digital</span>
+          <h2 id="sheetProductName"></h2>
+          <div class="price" id="sheetProductPrice"></div>
+          <p class="description" id="sheetProductDescription"></p>
+        </div>
+      </div>
+
+      <div class="sheet-actions">
+        <a class="btn" id="sheetBeliBtn" href="#">
+          <span aria-hidden="true">🛒</span>&nbsp;Beli
+        </a>
+        <a class="btn secondary" id="sheetContactBtn" href="#" target="_blank" rel="noopener">
+          Hubungi Admin
+        </a>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
+  <script src="supabase.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/app.js"></script>
 </body>
