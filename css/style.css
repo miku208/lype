@@ -1,15 +1,15 @@
 /* ==========================================================
-   Lyppe Store — public stylesheet (v3)
-   Dark mode — deep charcoal base with warm orange accent.
+   Lyppe Store — public stylesheet (v4)
+   Dark mode — deep charcoal/black base with violet/purple accent.
 
    Design tokens:
    - bg:          #0f0f0e
    - surface:     #1a1917
    - ink:         #f0ede8
    - muted:       #8a8680
-   - accent:      #FF6A2B (warm orange)
-   - accent-deep: #ff7d45
-   - accent-soft: #2a1a0e (dark tint)
+   - accent:      #7c5cff (violet)
+   - accent-deep: #9b86ff
+   - accent-soft: #20193d (dark tint)
    ========================================================== */
 
 :root {
@@ -22,11 +22,11 @@
   --border: #2a2826;
   --border-strong: #363330;
 
-  --accent: #ff6a2b;
-  --accent-deep: #ff7d45;
-  --accent-soft: #2a1a0e;
-  --accent-yellow: #ffb703;
-  --ink-on-accent: #fff9f5;
+  --accent: #7c5cff;
+  --accent-deep: #9b86ff;
+  --accent-soft: #20193d;
+  --accent-yellow: #c9a4ff;
+  --ink-on-accent: #ffffff;
 
   --danger: #e05c4b;
   --danger-bg: #2a1410;
@@ -40,7 +40,7 @@
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 10px 28px rgba(0, 0, 0, 0.45);
-  --shadow-accent: 0 10px 24px rgba(255, 106, 43, 0.28);
+  --shadow-accent: 0 10px 24px rgba(124, 92, 255, 0.28);
 
   --ease: 200ms cubic-bezier(0.2, 0.7, 0.3, 1);
 
@@ -141,8 +141,25 @@ h1, h2, h3 {
   height: 28px;
   border-radius: 8px;
   flex-shrink: 0;
-  background: linear-gradient(150deg, #ff6a2b 0%, #e5540f 100%);
+  background: linear-gradient(150deg, #7c5cff 0%, #5b3fe0 100%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Real logo image (assets/logo.png). Swap that file with your own
+   png/jpg to change it. .brand--has-logo hides the ::before gradient
+   box above; if the image 404s, the onerror handler on the <img>
+   removes both the image and that class so the gradient box shows
+   instead (see markup in index.html / product.html / payment.html). */
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.brand--has-logo::before {
+  content: none;
 }
 
 .site-nav {
@@ -292,7 +309,7 @@ h1, h2, h3 {
   inset: 0;
   border-radius: var(--radius-lg);
   background:
-    radial-gradient(circle at 22% 20%, rgba(255, 106, 43, 0.12), transparent 55%),
+    radial-gradient(circle at 22% 20%, rgba(124, 92, 255, 0.12), transparent 55%),
     radial-gradient(circle at 80% 75%, rgba(255, 183, 3, 0.10), transparent 50%),
     var(--surface);
   border: 1px solid var(--border);
@@ -450,6 +467,107 @@ h1, h2, h3 {
   color: var(--ink);
 }
 
+/* ---------- catalog controls: search + category chips ---------- */
+.catalog-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.search-box {
+  position: relative;
+}
+
+.search-box::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
+  border: 2px solid var(--muted-soft);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.search-box::after {
+  content: "";
+  position: absolute;
+  left: 25px;
+  top: 50%;
+  width: 7px;
+  height: 2px;
+  background: var(--muted-soft);
+  transform: translateY(6px) rotate(45deg);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.search-box input[type="search"] {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px 0 42px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--ease);
+}
+
+.search-box input[type="search"]::placeholder {
+  color: var(--muted-soft);
+}
+
+.search-box input[type="search"]:focus {
+  border-color: var(--accent);
+}
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-filter .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+
+.category-filter .chip:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+.category-filter .chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-on-accent);
+}
+
+.category-filter .chip .chip-count {
+  font-size: 0.76rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.category-filter .chip.active .chip-count {
+  opacity: 0.9;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -595,6 +713,150 @@ h1, h2, h3 {
   background: var(--surface);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
+}
+
+/* ---------- product quick-view bottom sheet ---------- */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(8, 8, 7, 0.6);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.sheet-overlay[hidden] {
+  display: none;
+}
+
+.sheet-overlay.open {
+  opacity: 1;
+}
+
+.product-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  transform: translateY(100%);
+  transition: transform 320ms cubic-bezier(0.22, 0.9, 0.32, 1), opacity 260ms ease;
+}
+
+.sheet-overlay.open .product-sheet {
+  transform: translateY(0);
+}
+
+.sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+
+.sheet-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease);
+}
+
+.sheet-close:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.sheet-scroll {
+  overflow-y: auto;
+  padding: 18px 20px 4px;
+}
+
+.sheet-image-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(160deg, #1e1c1a, #161412);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.sheet-image-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sheet-body h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+.sheet-body .price {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent-deep);
+  margin: 0 0 14px;
+}
+
+.sheet-body .description {
+  color: var(--muted);
+  font-size: 0.94rem;
+  white-space: pre-line;
+  margin: 0 0 8px;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sheet-actions .btn {
+  flex: 1;
+}
+
+@media (min-width: 640px) {
+  .sheet-overlay {
+    align-items: center;
+  }
+
+  .product-sheet {
+    border-radius: var(--radius-lg);
+    border-bottom: 1px solid var(--border-strong);
+    transform: translateY(24px) scale(0.98);
+    opacity: 0;
+  }
+
+  .sheet-overlay.open .product-sheet {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 /* ---------- product detail ---------- */
@@ -759,6 +1021,19 @@ h1, h2, h3 {
   color: var(--muted-soft);
   font-size: 0.8rem;
   margin: 0;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.back-link:hover {
+  color: var(--ink);
 }
 
 /* ---------- footer ---------- */

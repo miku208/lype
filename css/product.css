@@ -1,0 +1,31 @@
+/* ==========================================================
+   product.css — page-specific styles for product.html
+   Shared tokens, header/footer, .product-detail base layout,
+   and .btn/.image-frame components live in css/style.css.
+   ========================================================== */
+
+#productLoading {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Keep the primary "Beli" action visually distinct from the
+   secondary "Tanya Admin" WhatsApp link. */
+#beliButton {
+  min-width: 160px;
+}
+
+.product-detail .action-row {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 480px) {
+  .product-detail .action-row {
+    flex-direction: column;
+  }
+
+  .product-detail .action-row .btn {
+    width: 100%;
+  }
+}
