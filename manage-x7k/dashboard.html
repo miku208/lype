@@ -21,6 +21,7 @@
       <nav class="sidebar-nav" aria-label="Navigasi admin">
         <a href="#overview" data-nav="overview" class="active">Overview</a>
         <a href="#products" data-nav="products">Products</a>
+        <a href="#categories" data-nav="categories">Categories</a>
         <a href="#settings" data-nav="settings">Store Settings</a>
       </nav>
       <button class="sidebar-logout" id="logoutBtn" type="button">Logout</button>
@@ -59,6 +60,11 @@
                 <strong id="statInactiveProducts">–</strong>
                 <span class="stat-sub">Disembunyikan dari katalog</span>
               </div>
+              <div class="stat-card">
+                <span class="stat-label">Categories</span>
+                <strong id="statTotalCategories">–</strong>
+                <span class="stat-sub">Total kategori</span>
+              </div>
             </div>
           </section>
 
@@ -82,6 +88,19 @@
 
             <div class="product-manage-grid" id="productManageGrid"></div>
             <p class="empty-row" id="productEmptyState" hidden></p>
+          </section>
+
+          <section class="admin-section" id="categories">
+            <div class="section-header-row">
+              <div class="heading-group">
+                <h2>Categories</h2>
+                <p>Kelola kategori untuk filter katalog publik.</p>
+              </div>
+              <button class="btn sm" id="addCategoryBtn" type="button">+ Add Category</button>
+            </div>
+
+            <div class="category-manage-list" id="categoryManageList"></div>
+            <p class="empty-row" id="categoryEmptyState" hidden></p>
           </section>
 
           <section class="admin-section" id="settings">
@@ -134,6 +153,17 @@
                     <div class="image-preview" id="qrisPreview">Belum ada QRIS</div>
                   </div>
                 </div>
+                <div class="settings-grid">
+                  <div class="field">
+                    <label for="danaNumber">Nomor DANA</label>
+                    <input type="text" id="danaNumber" name="danaNumber" placeholder="08xxxxxxxxxx" />
+                  </div>
+                  <div class="field">
+                    <label for="paymentNote">Payment Note</label>
+                    <textarea id="paymentNote" name="paymentNote" placeholder="NOTE : JIKA SUDAH BAYAR - HUBUNGI ADMIN"></textarea>
+                    <p class="hint">Ditampilkan ke buyer di halaman pembayaran, tepat di bawah metode pembayaran.</p>
+                  </div>
+                </div>
               </div>
 
               <button type="submit" class="btn">Save Changes</button>
@@ -169,6 +199,12 @@
           <label for="productPriceInput">Price (IDR)</label>
           <input type="number" id="productPriceInput" name="price" min="0" step="1" required />
         </div>
+        <div class="field">
+          <label for="productCategoryInput">Category</label>
+          <select id="productCategoryInput" name="categoryId">
+            <option value="">Tanpa kategori</option>
+          </select>
+        </div>
 
         <div class="field">
           <label>Image</label>
@@ -198,10 +234,35 @@
     </div>
   </div>
 
+  <!-- Add/Edit category modal -->
+  <div class="modal-overlay" id="categoryModal" hidden>
+    <div class="modal-card">
+      <h2 id="categoryModalTitle">Add Category</h2>
+      <p class="modal-subtitle">Kategori digunakan sebagai filter di katalog publik.</p>
+      <form id="categoryForm" novalidate>
+        <div class="field">
+          <label for="categoryNameInput">Category Name</label>
+          <input type="text" id="categoryNameInput" name="name" required />
+        </div>
+        <div class="field">
+          <label for="categorySlugInput">Slug</label>
+          <input type="text" id="categorySlugInput" name="slug" required />
+          <p class="hint">Otomatis dibuat dari nama, tapi bisa diubah manual. Harus unik.</p>
+        </div>
+        <p class="form-error" id="categoryFormError"></p>
+        <div class="modal-actions">
+          <button type="submit" class="btn">Save Category</button>
+          <button type="button" class="btn secondary" id="cancelCategoryForm">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast-stack" id="toastStack"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../config.js"></script>
+  <script src="../supabase.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/admin.js"></script>
