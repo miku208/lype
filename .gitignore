@@ -1,0 +1,23 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment (relevant once migrated to Next.js)
+.env
+.env.local
+.env*.local
+
+# Node (relevant once migrated to Next.js)
+node_modules/
+.next/
+out/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Do not commit real Supabase credentials if you fork config.js
+# into a config.local.js or similar during development.
+config.local.js

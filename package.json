@@ -1,0 +1,9 @@
+{
+  "name": "lyppe-store",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Katalog produk digital Lyppe Store — static prototype (HTML/CSS/Vanilla JS + Supabase).",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

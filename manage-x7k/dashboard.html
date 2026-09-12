@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Lyppe Store</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div class="sidebar-brand">
+        <span class="mark" aria-hidden="true">L</span>
+        <span id="adminBrandName">Lyppe Store</span>
+      </div>
+      <nav class="sidebar-nav" aria-label="Navigasi admin">
+        <a href="#overview" data-nav="overview" class="active">Overview</a>
+        <a href="#products" data-nav="products">Products</a>
+        <a href="#settings" data-nav="settings">Store Settings</a>
+      </nav>
+      <button class="sidebar-logout" id="logoutBtn" type="button">Logout</button>
+    </aside>
+
+    <div class="admin-content">
+      <header class="admin-topbar">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Buka menu">
+          <span></span><span></span><span></span>
+        </button>
+        <span class="topbar-brand">Admin</span>
+      </header>
+
+      <main class="admin-main">
+        <div class="container">
+
+          <section class="admin-section" id="overview">
+            <div class="page-heading">
+              <h1>Overview</h1>
+              <p>Ringkasan katalog toko kamu.</p>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span class="stat-label">Products</span>
+                <strong id="statTotalProducts">–</strong>
+                <span class="stat-sub">Total catalog</span>
+              </div>
+              <div class="stat-card accent">
+                <span class="stat-label">Active</span>
+                <strong id="statActiveProducts">–</strong>
+                <span class="stat-sub">Tampil di katalog publik</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Inactive</span>
+                <strong id="statInactiveProducts">–</strong>
+                <span class="stat-sub">Disembunyikan dari katalog</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="admin-section" id="products">
+            <div class="section-header-row">
+              <div class="heading-group">
+                <h2>Products</h2>
+                <p>Manage your catalog.</p>
+              </div>
+              <button class="btn sm" id="addProductBtn" type="button">+ Add Product</button>
+            </div>
+
+            <div class="toolbar">
+              <input type="search" id="productSearchInput" class="search-input" placeholder="Cari produk..." />
+              <select id="productFilterSelect" class="filter-select">
+                <option value="all">Semua status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div class="product-manage-grid" id="productManageGrid"></div>
+            <p class="empty-row" id="productEmptyState" hidden></p>
+          </section>
+
+          <section class="admin-section" id="settings">
+            <div class="section-header-row">
+              <div class="heading-group">
+                <h2>Store Settings</h2>
+                <p>Kelola informasi publik toko kamu.</p>
+              </div>
+            </div>
+
+            <form id="settingsForm" novalidate>
+              <div class="settings-card">
+                <h3>Store Information</h3>
+                <div class="settings-grid">
+                  <div class="field">
+                    <label for="storeName">Store Name</label>
+                    <input type="text" id="storeName" name="storeName" required />
+                  </div>
+                  <div class="field">
+                    <label for="storeDescription">Description</label>
+                    <textarea id="storeDescription" name="storeDescription"></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="adminWhatsapp">Admin WhatsApp</label>
+                    <input type="text" id="adminWhatsapp" name="adminWhatsapp" placeholder="08xxxxxxxxxx" />
+                    <p class="hint">Boleh format 08xx, +62, atau 62xx — akan dinormalisasi otomatis.</p>
+                  </div>
+                  <div class="field">
+                    <label for="bannerUrl">Banner Image URL</label>
+                    <input type="url" id="bannerUrl" name="bannerUrl" placeholder="https://..." />
+                    <p class="hint">Opsional. Tampil sebagai banner di atas halaman katalog.</p>
+                  </div>
+                  <div class="field">
+                    <label for="heroMediaUrl">Hero Media URL</label>
+                    <input type="url" id="heroMediaUrl" name="heroMediaUrl" placeholder="https://... (jpg, png, gif, mp4, webm)" />
+                    <p class="hint">Opsional. Gambar, GIF, atau video pendek yang tampil di panel visual hero (menggantikan logo bulat).</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-card">
+                <h3>Payment</h3>
+                <div class="settings-grid with-preview">
+                  <div class="field" style="margin-bottom:0;">
+                    <label for="qrisUrl">QRIS Image URL</label>
+                    <input type="url" id="qrisUrl" name="qrisUrl" placeholder="https://..." />
+                  </div>
+                  <div class="qris-field-preview">
+                    <span class="preview-label">Preview</span>
+                    <div class="image-preview" id="qrisPreview">Belum ada QRIS</div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn">Save Changes</button>
+              <p class="form-error" id="settingsStatus"></p>
+            </form>
+          </section>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Add/Edit product modal -->
+  <div class="modal-overlay" id="productModal" hidden>
+    <div class="modal-card">
+      <h2 id="productModalTitle">Add Product</h2>
+      <p class="modal-subtitle">Informasi ini akan tampil di halaman katalog publik.</p>
+      <form id="productForm" novalidate>
+        <div class="field">
+          <label for="productNameInput">Product Name</label>
+          <input type="text" id="productNameInput" name="name" required />
+        </div>
+        <div class="field">
+          <label for="productSlugInput">Slug</label>
+          <input type="text" id="productSlugInput" name="slug" required />
+          <p class="hint">Otomatis dibuat dari nama, tapi bisa diubah manual. Harus unik.</p>
+        </div>
+        <div class="field">
+          <label for="productDescriptionInput">Description</label>
+          <textarea id="productDescriptionInput" name="description"></textarea>
+        </div>
+        <div class="field">
+          <label for="productPriceInput">Price (IDR)</label>
+          <input type="number" id="productPriceInput" name="price" min="0" step="1" required />
+        </div>
+
+        <div class="field">
+          <label>Image</label>
+          <div class="image-upload-row">
+            <div class="image-preview" id="productImagePreview">Belum ada gambar</div>
+            <div class="controls">
+              <label class="file-input-label">
+                Upload Image
+                <input type="file" id="productImageFileInput" name="imageFile" accept="image/*" />
+              </label>
+              <input type="url" id="productImageUrlInput" name="imageUrl" placeholder="atau tempel Image URL" />
+              <p class="upload-status" id="uploadStatus"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkbox-field">
+          <input type="checkbox" id="productIsActiveInput" name="isActive" checked />
+          <label for="productIsActiveInput">Active (tampil di katalog publik)</label>
+        </div>
+        <p class="form-error" id="productFormError"></p>
+        <div class="modal-actions">
+          <button type="submit" class="btn">Save Product</button>
+          <button type="button" class="btn secondary" id="cancelProductForm">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/admin.js"></script>
+</body>
+</html>

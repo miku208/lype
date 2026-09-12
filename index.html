@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyppe Store — Katalog Produk Digital</title>
+  <meta name="description" content="Katalog produk digital Lyppe Store." />
+  <meta name="theme-color" content="#fafaf8" />
+  <link rel="canonical" href="https://example.com/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Lyppe Store" />
+  <meta property="og:description" content="Katalog produk digital Lyppe Store." />
+  <meta property="og:image" content="/assets/og-default.png" />
+  <meta property="og:url" content="https://example.com/" />
+  <meta property="og:site_name" content="Lyppe Store" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Lyppe Store" />
+  <meta name="twitter:description" content="Katalog produk digital Lyppe Store." />
+  <meta name="twitter:image" content="/assets/og-default.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/assets/favicon-32x32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="/assets/favicon-16x16.png" sizes="16x16" type="image/png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="brand" id="brandName">Lyppe Store</a>
+      <nav class="site-nav" aria-label="Navigasi utama">
+        <a href="index.html">Produk</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Banner tampil hanya jika store_settings.banner_url terisi -->
+  <div class="store-banner" id="storeBanner" hidden>
+    <div class="frame">
+      <img id="storeBannerImage" src="" alt="" />
+    </div>
+  </div>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-copy">
+          <p class="hero-eyebrow">LYPPE STORE</p>
+          <h1 id="storeHeading">Produk digital yang siap dipakai.</h1>
+          <p class="lede" id="storeDescription">Katalog produk digital.</p>
+          <div class="hero-actions">
+            <a href="#productGrid" class="btn">Lihat Produk →</a>
+          </div>
+          <div class="hero-stats">
+            <div class="stat">
+              <strong id="heroProductCount">–</strong>
+              <span>Produk tersedia</span>
+            </div>
+            <div class="stat">
+              <strong>QRIS</strong>
+              <span>Pembayaran instan</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero-visual" id="heroVisual" aria-hidden="true">
+          <div class="backdrop"></div>
+          <div class="hero-media" id="heroMedia" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="product-section">
+      <div class="container">
+        <div class="section-header">
+          <div class="heading-group">
+            <h2>Produk Pilihan</h2>
+            <p>Temukan produk digital yang tersedia.</p>
+          </div>
+          <span class="count-chip" id="productCountChip" hidden><strong id="productCountValue">0</strong>&nbsp;produk</span>
+        </div>
+        <div class="product-grid" id="productGrid">
+          <p class="state-message loading-text">Memuat produk...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span id="footerStoreName">© Lyppe Store</span>
+      <a id="footerWhatsApp" href="#" hidden>Hubungi via WhatsApp</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
