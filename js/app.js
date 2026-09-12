@@ -109,6 +109,17 @@ function renderProductCard(product) {
   const card = document.createElement("a");
   card.className = "product-card";
   card.href = `product.html?slug=${encodeURIComponent(product.slug)}`;
+  card.dataset.slug = product.slug;
+
+  // Open the quick-view bottom sheet instead of navigating away, for a
+  // plain left-click. Ctrl/Cmd/middle-click etc. still open product.html
+  // normally (new tab), and the href keeps working with JS disabled.
+  card.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openProductSheet(product);
+  });
 
   const thumb = document.createElement("div");
   if (product.image_url) {
@@ -117,6 +128,15 @@ function renderProductCard(product) {
     img.src = product.image_url;
     img.alt = product.name;
     img.loading = "lazy";
+    img.onerror = () => {
+      img.remove();
+      thumb.className = "thumb placeholder";
+      const icon = document.createElement("div");
+      icon.className = "placeholder-icon";
+      icon.textContent = "L";
+      icon.setAttribute("aria-hidden", "true");
+      thumb.appendChild(icon);
+    };
     thumb.appendChild(img);
   } else {
     thumb.className = "thumb placeholder";
@@ -133,16 +153,24 @@ function renderProductCard(product) {
   const name = document.createElement("div");
   name.className = "name";
   name.textContent = product.name;
+  body.appendChild(name);
+
+  if (product.description) {
+    const desc = document.createElement("div");
+    desc.className = "desc";
+    desc.textContent = product.description;
+    body.appendChild(desc);
+  }
 
   const price = document.createElement("div");
   price.className = "price";
   price.textContent = formatPrice(product.price);
+  body.appendChild(price);
 
   const cta = document.createElement("div");
   cta.className = "cta";
   cta.textContent = "Lihat Produk →";
-
-  body.append(name, price, cta);
+  body.appendChild(cta);
   card.append(thumb, body);
   return card;
 }
@@ -157,32 +185,247 @@ function updateProductCountDisplays(count) {
   if (chipEl) chipEl.hidden = count === 0;
 }
 
-async function loadProductsInto(gridEl) {
-  showLoading(gridEl, "Memuat produk...");
+/* ------------------------------------------------------------
+ * Category filter + search (client-side, over the already-loaded
+ * active product list — keeps the storefront snappy without an
+ * extra round-trip per click).
+ * ------------------------------------------------------------ */
+let catalogState = {
+  products: [],
+  categories: [],
+  activeCategorySlug: "",
+  query: "",
+};
+
+function renderCategoryChips(filterEl) {
+  if (!filterEl) return;
+
+  const total = catalogState.products.length;
+  const countsBySlug = {};
+  catalogState.products.forEach((p) => {
+    const slug = (p.categories && p.categories.slug) || null;
+    if (!slug) return;
+    countsBySlug[slug] = (countsBySlug[slug] || 0) + 1;
+  });
+
+  filterEl.innerHTML = "";
+
+  const allChip = document.createElement("button");
+  allChip.type = "button";
+  allChip.className = "chip" + (catalogState.activeCategorySlug === "" ? " active" : "");
+  allChip.setAttribute("role", "tab");
+  allChip.setAttribute("aria-selected", String(catalogState.activeCategorySlug === ""));
+  allChip.dataset.slug = "";
+  allChip.innerHTML = `Semua <span class="chip-count">${total}</span>`;
+  allChip.addEventListener("click", () => setActiveCategory("", filterEl));
+  filterEl.appendChild(allChip);
+
+  catalogState.categories.forEach((category) => {
+    const count = countsBySlug[category.slug] || 0;
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip" + (catalogState.activeCategorySlug === category.slug ? " active" : "");
+    chip.setAttribute("role", "tab");
+    chip.setAttribute("aria-selected", String(catalogState.activeCategorySlug === category.slug));
+    chip.dataset.slug = category.slug;
+    chip.innerHTML = `${category.name} <span class="chip-count">${count}</span>`;
+    chip.addEventListener("click", () => setActiveCategory(category.slug, filterEl));
+    filterEl.appendChild(chip);
+  });
+}
+
+function setActiveCategory(slug, filterEl) {
+  catalogState.activeCategorySlug = slug;
+  renderCategoryChips(filterEl);
+  renderFilteredProducts();
+}
+
+function renderFilteredProducts() {
+  const gridEl = document.getElementById("productGrid");
+  if (!gridEl) return;
+
+  const query = catalogState.query.trim().toLowerCase();
+  const slug = catalogState.activeCategorySlug;
+
+  const filtered = catalogState.products.filter((product) => {
+    const matchesCategory = !slug || (product.categories && product.categories.slug === slug);
+    const matchesQuery =
+      !query ||
+      product.name.toLowerCase().includes(query) ||
+      (product.description && product.description.toLowerCase().includes(query));
+    return matchesCategory && matchesQuery;
+  });
+
+  gridEl.innerHTML = "";
+  if (filtered.length === 0) {
+    showMessage(gridEl, "Tidak ada produk yang cocok.");
+  } else {
+    filtered.forEach((product) => gridEl.appendChild(renderProductCard(product)));
+  }
+  updateProductCountDisplays(filtered.length);
+}
+
+async function loadCategoriesData() {
   try {
     const { data, error } = await supabaseClient
-      .from("products")
-      .select("name, slug, description, price, image_url")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+      .from("categories")
+      .select("id, name, slug")
+      .order("name", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    safeErrorMessage(error, "Gagal memuat kategori.");
+    return [];
+  }
+}
+
+async function loadProductsInto(gridEl, filterEl) {
+  showLoading(gridEl, "Memuat produk...");
+  try {
+    const [{ data, error }, categories] = await Promise.all([
+      supabaseClient
+        .from("products")
+        .select("name, slug, description, price, image_url, categories ( name, slug )")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false }),
+      loadCategoriesData(),
+    ]);
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    catalogState.products = data || [];
+    catalogState.categories = categories;
+
+    if (catalogState.products.length === 0) {
       showMessage(gridEl, "Belum ada produk.");
       updateProductCountDisplays(0);
+      renderCategoryChips(filterEl);
       return;
     }
 
-    gridEl.innerHTML = "";
-    data.forEach((product) => {
-      gridEl.appendChild(renderProductCard(product));
-    });
-    updateProductCountDisplays(data.length);
+    renderCategoryChips(filterEl);
+    renderFilteredProducts();
   } catch (error) {
     const message = safeErrorMessage(error, "Gagal memuat produk. Coba muat ulang halaman.");
     showMessage(gridEl, message);
   }
+}
+
+/* ------------------------------------------------------------
+ * Product quick-view bottom sheet (index.html only).
+ * Reuses the product list already fetched for the grid — no
+ * extra request needed to show name/price/description/image.
+ * ------------------------------------------------------------ */
+let sheetState = {
+  whatsapp: null,
+  storeName: "",
+  refs: null,
+  openSlug: null,
+};
+
+function getSheetRefs() {
+  if (sheetState.refs) return sheetState.refs;
+  const overlay = document.getElementById("productSheetOverlay");
+  if (!overlay) return null;
+  sheetState.refs = {
+    overlay,
+    sheet: document.getElementById("productSheet"),
+    closeBtn: document.getElementById("sheetCloseBtn"),
+    image: document.getElementById("sheetProductImage"),
+    category: document.getElementById("sheetProductCategory"),
+    name: document.getElementById("sheetProductName"),
+    price: document.getElementById("sheetProductPrice"),
+    description: document.getElementById("sheetProductDescription"),
+    beliBtn: document.getElementById("sheetBeliBtn"),
+    contactBtn: document.getElementById("sheetContactBtn"),
+  };
+  return sheetState.refs;
+}
+
+function openProductSheet(product, options = {}) {
+  const refs = getSheetRefs();
+  if (!refs || !product) return;
+
+  if (product.image_url) {
+    refs.image.src = product.image_url;
+    refs.image.alt = product.name;
+    refs.image.onerror = () => {
+      refs.image.src = "assets/placeholder.svg";
+    };
+  } else {
+    refs.image.src = "assets/placeholder.svg";
+    refs.image.alt = product.name;
+  }
+
+  refs.category.textContent = (product.categories && product.categories.name) || "Produk Digital";
+  refs.name.textContent = product.name;
+  refs.price.textContent = formatPrice(product.price);
+  refs.description.textContent = product.description || APP_CONFIG.productDescriptionFallback;
+
+  refs.beliBtn.href = `payment.html?slug=${encodeURIComponent(product.slug)}`;
+
+  const storeName = sheetState.storeName || APP_CONFIG.storeNameFallback;
+  const waMessage = `Halo ${storeName}, saya tertarik dengan produk "${product.name}".`;
+  const waLink = buildWhatsAppLink(sheetState.whatsapp, waMessage);
+  if (waLink) {
+    refs.contactBtn.href = waLink;
+    refs.contactBtn.hidden = false;
+  } else {
+    refs.contactBtn.hidden = true;
+  }
+
+  refs.overlay.hidden = false;
+  requestAnimationFrame(() => refs.overlay.classList.add("open"));
+  document.body.style.overflow = "hidden";
+  sheetState.openSlug = product.slug;
+
+  if (!options.skipHistory) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("produk", product.slug);
+    history.pushState({ produkSheet: product.slug }, "", url);
+  }
+}
+
+function closeProductSheet(options = {}) {
+  const refs = getSheetRefs();
+  if (!refs || refs.overlay.hidden) return;
+
+  refs.overlay.classList.remove("open");
+  document.body.style.overflow = "";
+  sheetState.openSlug = null;
+  setTimeout(() => {
+    refs.overlay.hidden = true;
+  }, 320);
+
+  if (!options.skipHistory) {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("produk")) {
+      url.searchParams.delete("produk");
+      history.pushState({}, "", url);
+    }
+  }
+}
+
+function initProductSheet() {
+  const refs = getSheetRefs();
+  if (!refs) return;
+
+  refs.closeBtn.addEventListener("click", () => closeProductSheet());
+  refs.overlay.addEventListener("click", (event) => {
+    if (event.target === refs.overlay) closeProductSheet();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !refs.overlay.hidden) closeProductSheet();
+  });
+  window.addEventListener("popstate", () => {
+    const slug = new URLSearchParams(window.location.search).get("produk");
+    if (!slug) {
+      closeProductSheet({ skipHistory: true });
+      return;
+    }
+    const product = catalogState.products.find((p) => p.slug === slug);
+    if (product) openProductSheet(product, { skipHistory: true });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -192,10 +435,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   const footerNameEl = document.getElementById("footerStoreName");
   const footerWaEl = document.getElementById("footerWhatsApp");
   const gridEl = document.getElementById("productGrid");
+  const filterEl = document.getElementById("categoryFilter");
+  const searchEl = document.getElementById("productSearchInput");
   const bannerWrapEl = document.getElementById("storeBanner");
   const bannerImgEl = document.getElementById("storeBannerImage");
   const heroMediaWrapEl = document.getElementById("heroMedia");
 
-  await loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl, footerWaEl, bannerWrapEl, bannerImgEl, heroMediaWrapEl });
-  if (gridEl) await loadProductsInto(gridEl);
+  initProductSheet();
+
+  const settings = await loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl, footerWaEl, bannerWrapEl, bannerImgEl, heroMediaWrapEl });
+  if (settings) {
+    sheetState.whatsapp = settings.whatsapp;
+    sheetState.storeName = settings.storeName;
+  }
+
+  if (gridEl) await loadProductsInto(gridEl, filterEl);
+
+  // Deep link support: open the sheet directly if ?produk=slug is in the URL.
+  const initialSlug = new URLSearchParams(window.location.search).get("produk");
+  if (initialSlug) {
+    const product = catalogState.products.find((p) => p.slug === initialSlug);
+    if (product) openProductSheet(product, { skipHistory: true });
+  }
+
+  if (searchEl) {
+    searchEl.addEventListener("input", (event) => {
+      catalogState.query = event.target.value;
+      renderFilteredProducts();
+    });
+  }
 });

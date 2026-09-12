@@ -90,7 +90,7 @@ async function loadSettingsForm() {
   try {
     const { data, error } = await supabaseClient
       .from("store_settings")
-      .select("id, store_name, store_description, admin_whatsapp, qris_url, banner_url, hero_media_url")
+      .select("id, store_name, store_description, admin_whatsapp, qris_url, dana_number, payment_note, banner_url, hero_media_url")
       .limit(1)
       .maybeSingle();
 
@@ -101,6 +101,8 @@ async function loadSettingsForm() {
     form.elements.storeDescription.value = data.store_description || "";
     form.elements.adminWhatsapp.value = data.admin_whatsapp || "";
     form.elements.qrisUrl.value = data.qris_url || "";
+    form.elements.danaNumber.value = data.dana_number || "";
+    form.elements.paymentNote.value = data.payment_note || APP_CONFIG.defaultPaymentNote;
     form.elements.bannerUrl.value = data.banner_url || "";
     form.elements.heroMediaUrl.value = data.hero_media_url || "";
     form.dataset.settingsId = data.id;
@@ -144,6 +146,8 @@ async function handleSettingsSubmit(event) {
     store_description: form.elements.storeDescription.value.trim(),
     admin_whatsapp: form.elements.adminWhatsapp.value.trim(),
     qris_url: form.elements.qrisUrl.value.trim(),
+    dana_number: form.elements.danaNumber.value.trim(),
+    payment_note: form.elements.paymentNote.value.trim() || APP_CONFIG.defaultPaymentNote,
     banner_url: form.elements.bannerUrl.value.trim(),
     hero_media_url: form.elements.heroMediaUrl.value.trim(),
   };
@@ -183,10 +187,12 @@ function updateOverviewStats(products) {
   const totalEl = document.getElementById("statTotalProducts");
   const activeEl = document.getElementById("statActiveProducts");
   const inactiveEl = document.getElementById("statInactiveProducts");
+  const categoriesEl = document.getElementById("statTotalCategories");
 
   if (totalEl) totalEl.textContent = String(total);
   if (activeEl) activeEl.textContent = String(active);
   if (inactiveEl) inactiveEl.textContent = String(inactive);
+  if (categoriesEl) categoriesEl.textContent = String(allCategories.length);
 }
 
 async function loadProducts() {
@@ -199,7 +205,7 @@ async function loadProducts() {
   try {
     const { data, error } = await supabaseClient
       .from("products")
-      .select("id, name, slug, description, price, image_url, is_active, created_at, updated_at")
+      .select("id, name, slug, description, price, image_url, category_id, is_active, created_at, updated_at, categories ( name )")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -284,11 +290,15 @@ function renderProductGrid(products) {
     priceEl.className = "price";
     priceEl.textContent = formatPrice(product.price);
 
+    const categoryEl = document.createElement("span");
+    categoryEl.className = "status-pill";
+    categoryEl.textContent = (product.categories && product.categories.name) || "Tanpa kategori";
+
     const pill = document.createElement("span");
     pill.className = `status-pill ${product.is_active ? "active" : ""}`.trim();
     pill.textContent = product.is_active ? "Active" : "Inactive";
 
-    metaRow.append(priceEl, pill);
+    metaRow.append(priceEl, categoryEl, pill);
 
     const actionsRow = document.createElement("div");
     actionsRow.className = "row-actions";
@@ -332,6 +342,8 @@ function openProductModal(product = null) {
   pendingImageFile = null;
   editingProductId = product ? product.id : null;
 
+  populateCategorySelect(form.elements.categoryId);
+
   title.textContent = product ? "Edit Product" : "Add Product";
 
   if (product) {
@@ -339,6 +351,7 @@ function openProductModal(product = null) {
     form.elements.slug.value = product.slug;
     form.elements.description.value = product.description || "";
     form.elements.price.value = product.price;
+    form.elements.categoryId.value = product.category_id || "";
     form.elements.imageUrl.value = product.image_url || "";
     form.elements.isActive.checked = product.is_active;
     form.dataset.slugTouched = "true";
@@ -430,6 +443,7 @@ async function handleProductFormSubmit(event) {
       slug: slugify(form.elements.slug.value.trim()),
       description: form.elements.description.value.trim(),
       price: Number(form.elements.price.value) || 0,
+      category_id: form.elements.categoryId.value || null,
       image_url: imageUrl || null,
       is_active: form.elements.isActive.checked,
     };
@@ -487,6 +501,199 @@ async function confirmDeleteProduct(product) {
 }
 
 /* ------------------------------------------------------------
+ * Categories (list + add/edit/delete modal)
+ * ------------------------------------------------------------ */
+let allCategories = [];
+let editingCategoryId = null;
+
+async function loadCategories() {
+  const list = document.getElementById("categoryManageList");
+  const emptyRow = document.getElementById("categoryEmptyState");
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("categories")
+      .select("id, name, slug, created_at")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    allCategories = data || [];
+    renderCategoryList();
+    updateOverviewStats(allProducts);
+  } catch (error) {
+    const message = safeErrorMessage(error, "Gagal memuat kategori.");
+    list.innerHTML = "";
+    emptyRow.hidden = false;
+    emptyRow.textContent = message;
+  }
+}
+
+function renderCategoryList() {
+  const list = document.getElementById("categoryManageList");
+  const emptyRow = document.getElementById("categoryEmptyState");
+  list.innerHTML = "";
+
+  if (!allCategories.length) {
+    emptyRow.hidden = false;
+    emptyRow.textContent = "Belum ada kategori.";
+    return;
+  }
+  emptyRow.hidden = true;
+
+  allCategories.forEach((category) => {
+    const row = document.createElement("div");
+    row.className = "category-row";
+
+    const info = document.createElement("div");
+    info.className = "category-row-info";
+    const nameEl = document.createElement("span");
+    nameEl.className = "name";
+    nameEl.textContent = category.name;
+    const slugEl = document.createElement("span");
+    slugEl.className = "slug";
+    slugEl.textContent = category.slug;
+    info.append(nameEl, slugEl);
+
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => openCategoryModal(category));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "danger";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", () => confirmDeleteCategory(category));
+
+    actions.append(editBtn, deleteBtn);
+    row.append(info, actions);
+    list.appendChild(row);
+  });
+}
+
+/** Fills a <select> with "Tanpa kategori" + one <option> per category, keeping any current value. */
+function populateCategorySelect(selectEl) {
+  const currentValue = selectEl.value;
+  selectEl.innerHTML = '<option value="">Tanpa kategori</option>';
+  allCategories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category.id;
+    option.textContent = category.name;
+    selectEl.appendChild(option);
+  });
+  selectEl.value = currentValue;
+}
+
+function openCategoryModal(category = null) {
+  const overlay = document.getElementById("categoryModal");
+  const form = document.getElementById("categoryForm");
+  const title = document.getElementById("categoryModalTitle");
+  const errorEl = document.getElementById("categoryFormError");
+
+  form.reset();
+  errorEl.textContent = "";
+  editingCategoryId = category ? category.id : null;
+  title.textContent = category ? "Edit Category" : "Add Category";
+
+  if (category) {
+    form.elements.name.value = category.name;
+    form.elements.slug.value = category.slug;
+    form.dataset.slugTouched = "true";
+  } else {
+    form.dataset.slugTouched = "";
+  }
+
+  overlay.hidden = false;
+}
+
+function closeCategoryModal() {
+  document.getElementById("categoryModal").hidden = true;
+  editingCategoryId = null;
+}
+
+function handleCategoryNameInput(event) {
+  const form = event.target.form;
+  if (form.dataset.slugTouched === "true") return;
+  form.elements.slug.value = slugify(event.target.value);
+}
+
+function handleCategorySlugInput(event) {
+  event.target.form.dataset.slugTouched = "true";
+}
+
+async function handleCategoryFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const errorEl = document.getElementById("categoryFormError");
+  errorEl.textContent = "";
+
+  const payload = {
+    name: form.elements.name.value.trim(),
+    slug: slugify(form.elements.slug.value.trim()),
+  };
+
+  if (!payload.name || !payload.slug) {
+    errorEl.textContent = "Nama dan slug kategori wajib diisi.";
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Saving...";
+
+  try {
+    const { error } = editingCategoryId
+      ? await supabaseClient.from("categories").update(payload).eq("id", editingCategoryId)
+      : await supabaseClient.from("categories").insert(payload);
+
+    if (error) {
+      if (error.code === "23505") {
+        errorEl.textContent = "Slug sudah digunakan kategori lain. Gunakan slug yang berbeda.";
+      } else {
+        errorEl.textContent = "Gagal menyimpan kategori. Coba lagi.";
+        console.error(error);
+      }
+      return;
+    }
+
+    closeCategoryModal();
+    showToast(editingCategoryId ? "Category updated." : "Category added.", "success");
+    await loadCategories();
+  } catch (error) {
+    errorEl.textContent = error.message || "Gagal menyimpan kategori.";
+    console.error(error);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Save Category";
+  }
+}
+
+async function confirmDeleteCategory(category) {
+  const confirmed = await confirmDialog({
+    title: "Delete category?",
+    message: `"${category.name}" will be removed. Products in this category will become uncategorized. This action cannot be undone.`,
+    confirmLabel: "Delete",
+    cancelLabel: "Cancel",
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const { error } = await supabaseClient.from("categories").delete().eq("id", category.id);
+    if (error) throw error;
+    showToast("Category deleted.", "success");
+    await loadCategories();
+  } catch (error) {
+    safeErrorMessage(error, "Gagal menghapus kategori.");
+    showToast("Could not delete category.", "error");
+  }
+}
+
+/* ------------------------------------------------------------
  * Sidebar navigation (mobile drawer + active link highlight)
  * ------------------------------------------------------------ */
 function initSidebarNav() {
@@ -535,6 +742,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initSidebarNav();
 
   await loadSettingsForm();
+  await loadCategories();
   await loadProducts();
 
   document.getElementById("settingsForm").addEventListener("submit", handleSettingsSubmit);
@@ -553,5 +761,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Clicking the dimmed overlay background also closes the modal.
   document.getElementById("productModal").addEventListener("click", (event) => {
     if (event.target.id === "productModal") closeProductModal();
+  });
+
+  document.getElementById("addCategoryBtn").addEventListener("click", () => openCategoryModal());
+  document.getElementById("cancelCategoryForm").addEventListener("click", closeCategoryModal);
+  document.getElementById("categoryForm").addEventListener("submit", handleCategoryFormSubmit);
+  document.getElementById("categoryForm").elements.name.addEventListener("input", handleCategoryNameInput);
+  document.getElementById("categoryForm").elements.slug.addEventListener("input", handleCategorySlugInput);
+  document.getElementById("categoryModal").addEventListener("click", (event) => {
+    if (event.target.id === "categoryModal") closeCategoryModal();
   });
 });

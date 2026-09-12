@@ -1,6 +1,7 @@
 /**
  * product.js
  * Product detail page (product.html?slug=...).
+ * Shows product info only — payment happens on payment.html.
  */
 
 function getSlugFromUrl() {
@@ -39,11 +40,16 @@ function renderProduct(product, storeSettings, refs) {
   if (product.image_url) {
     refs.image.src = product.image_url;
     refs.image.alt = product.name;
+    refs.image.onerror = () => {
+      refs.image.src = "assets/placeholder.svg";
+    };
   } else {
-    refs.image.src = APP_CONFIG.defaultOgImage;
+    refs.image.src = "assets/placeholder.svg";
     refs.image.alt = product.name;
   }
 
+  refs.category.textContent =
+    (product.categories && product.categories.name) || "Produk Digital";
   refs.name.textContent = product.name;
   refs.price.textContent = formatPrice(product.price);
   refs.description.textContent = product.description || APP_CONFIG.productDescriptionFallback;
@@ -60,14 +66,7 @@ function renderProduct(product, storeSettings, refs) {
     refs.contactBtn.hidden = true;
   }
 
-  const qrisUrl = storeSettings && storeSettings.qris_url;
-  if (qrisUrl) {
-    refs.qrisBox.hidden = false;
-    refs.qrisImage.src = qrisUrl;
-    refs.qrisImage.alt = "QRIS pembayaran";
-  } else {
-    refs.qrisBox.hidden = true;
-  }
+  refs.beliBtn.href = `payment.html?slug=${encodeURIComponent(product.slug)}`;
 
   refs.footerNameEl.textContent = `© ${new Date().getFullYear()} ${storeName}`;
   updateProductMeta(product, storeName);
@@ -84,14 +83,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     detail: document.getElementById("productDetail"),
     notFound: document.getElementById("productNotFound"),
     image: document.getElementById("productImage"),
+    category: document.getElementById("productCategory"),
     name: document.getElementById("productName"),
     price: document.getElementById("productPrice"),
     description: document.getElementById("productDescription"),
+    beliBtn: document.getElementById("beliButton"),
     contactBtn: document.getElementById("contactWhatsApp"),
-    qrisBox: document.getElementById("qrisBox"),
-    qrisImage: document.getElementById("qrisImage"),
     footerNameEl: document.getElementById("footerStoreName"),
   };
+
+  const brandEl = document.getElementById("brandName");
 
   const slug = getSlugFromUrl();
   if (!slug) {
@@ -104,18 +105,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const [{ data: product, error: productError }, { data: settings }] = await Promise.all([
       supabaseClient
         .from("products")
-        .select("name, slug, description, price, image_url")
+        .select("name, slug, description, price, image_url, categories ( name, slug )")
         .eq("slug", slug)
         .eq("is_active", true)
         .maybeSingle(),
       supabaseClient
         .from("store_settings")
-        .select("store_name, admin_whatsapp, qris_url")
+        .select("store_name, admin_whatsapp")
         .limit(1)
         .maybeSingle(),
     ]);
 
     refs.loading.hidden = true;
+
+    if (brandEl && settings && settings.store_name) {
+      brandEl.textContent = settings.store_name;
+    }
 
     if (productError || !product) {
       showNotFound(refs);
