@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Gambar produk tidak tersedia">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#201e2c"/>
+      <stop offset="100%" stop-color="#151319"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="399" height="399" fill="none" stroke="#2a2740" stroke-width="1"/>
+  <g transform="translate(200,180)">
+    <rect x="-34" y="-34" width="68" height="68" rx="16" fill="#26223a" stroke="#3a3558" stroke-width="1"/>
+    <text x="0" y="12" font-family="'Plus Jakarta Sans', Inter, sans-serif" font-size="32" font-weight="800" fill="#7c5cff" text-anchor="middle">L</text>
+  </g>
+  <text x="200" y="248" font-family="Inter, sans-serif" font-size="14" fill="#6f6b86" text-anchor="middle">Gambar belum tersedia</text>
+</svg>
