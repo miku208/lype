@@ -138,6 +138,11 @@
                     <input type="url" id="heroMediaUrl" name="heroMediaUrl" placeholder="https://... (jpg, png, gif, mp4, webm)" />
                     <p class="hint">Opsional. Gambar, GIF, atau video pendek yang tampil di panel visual hero (menggantikan logo bulat).</p>
                   </div>
+                  <div class="field">
+                    <label for="announcementText">Pengumuman (Announcement Banner)</label>
+                    <textarea id="announcementText" name="announcementText" placeholder="Contoh: WEB INI WEB MANUAL, JIKA ADMIN SLOWRES MOHON DITUNGGU SAJA, DAN JANGAN SPAM 🚫"></textarea>
+                    <p class="hint">Opsional. Tampil sebagai banner kecil di bawah header, di semua halaman publik (katalog, produk, pembayaran). Kosongkan untuk menyembunyikan.</p>
+                  </div>
                 </div>
               </div>
 
@@ -200,10 +205,38 @@
           <input type="number" id="productPriceInput" name="price" min="0" step="1" required />
         </div>
         <div class="field">
+          <label for="productPriceLabelInput">Label Harga</label>
+          <input type="text" id="productPriceLabelInput" name="priceLabel" placeholder="Opsional, misal: Mulai Rp15.000 / Hubungi Admin" />
+          <p class="hint">Kosongkan untuk menampilkan harga normal di atas. Diisi untuk mengganti tampilan harga (tidak mengubah harga asli).</p>
+        </div>
+        <div class="field">
           <label for="productCategoryInput">Category</label>
           <select id="productCategoryInput" name="categoryId">
             <option value="">Tanpa kategori</option>
           </select>
+        </div>
+        <div class="field" id="productCountryField">
+          <label for="productCountryInput">Negara NOKOS</label>
+          <input type="text" id="productCountryInput" name="country" placeholder="Misal: Indonesia" list="productCountryList" />
+          <datalist id="productCountryList">
+            <option value="Indonesia"></option>
+            <option value="Malaysia"></option>
+            <option value="Singapura"></option>
+            <option value="Thailand"></option>
+            <option value="Vietnam"></option>
+            <option value="Filipina"></option>
+          </datalist>
+          <p class="hint">Hanya berlaku untuk kategori NOKOS.</p>
+        </div>
+        <div class="field">
+          <label for="productStockInput">Stok</label>
+          <input type="number" id="productStockInput" name="stock" min="0" step="1" required />
+          <p class="hint">
+            Satu kolom stok untuk semua kategori. Stok 0 = "Tidak tersedia" (tombol Beli nonaktif di katalog
+            publik) dan Stok &gt; 0 = "Tersedia" — ini otomatis, tidak perlu diatur terpisah. Stok hanya
+            berubah lewat halaman ini; sistem tidak pernah menguranginya otomatis karena pembayaran masih manual.
+          </p>
+          <p class="availability-preview" id="productAvailabilityPreview"></p>
         </div>
 
         <div class="field">
