@@ -15,6 +15,87 @@ function formatPrice(value) {
   return priceFormatter.format(number);
 }
 
+/**
+ * Small country-name → flag-emoji lookup for NOKOS-style products.
+ * Purely cosmetic — an unrecognized/typo'd country just renders
+ * without a flag, so a miss here is harmless (never used for logic).
+ */
+const COUNTRY_FLAGS = {
+  indonesia: "🇮🇩",
+  malaysia: "🇲🇾",
+  singapura: "🇸🇬",
+  singapore: "🇸🇬",
+  thailand: "🇹🇭",
+  vietnam: "🇻🇳",
+  filipina: "🇵🇭",
+  philippines: "🇵🇭",
+  kamboja: "🇰🇭",
+  cambodia: "🇰🇭",
+  myanmar: "🇲🇲",
+  laos: "🇱🇦",
+  brunei: "🇧🇳",
+  india: "🇮🇳",
+  pakistan: "🇵🇰",
+  bangladesh: "🇧🇩",
+  china: "🇨🇳",
+  tiongkok: "🇨🇳",
+  jepang: "🇯🇵",
+  japan: "🇯🇵",
+  korea: "🇰🇷",
+  "korea selatan": "🇰🇷",
+  "hong kong": "🇭🇰",
+  hongkong: "🇭🇰",
+  taiwan: "🇹🇼",
+  australia: "🇦🇺",
+  amerika: "🇺🇸",
+  "amerika serikat": "🇺🇸",
+  usa: "🇺🇸",
+  "united states": "🇺🇸",
+  inggris: "🇬🇧",
+  "united kingdom": "🇬🇧",
+  uk: "🇬🇧",
+  jerman: "🇩🇪",
+  germany: "🇩🇪",
+  prancis: "🇫🇷",
+  france: "🇫🇷",
+  belanda: "🇳🇱",
+  netherlands: "🇳🇱",
+  rusia: "🇷🇺",
+  russia: "🇷🇺",
+  nigeria: "🇳🇬",
+  global: "🌐",
+  internasional: "🌐",
+  international: "🌐",
+};
+
+/** Looks up a flag emoji for a country name; returns "" if unknown. */
+function getCountryFlag(country) {
+  if (!country) return "";
+  const key = String(country).trim().toLowerCase();
+  return COUNTRY_FLAGS[key] || "";
+}
+
+/**
+ * Centralizes the price/availability display rule (used by the catalog
+ * grid, product detail page, and quick-view sheet):
+ *  1. is_available === false  -> "Tidak tersedia" (never show Rp 0)
+ *  2. price_label has content -> show it verbatim (display override)
+ *  3. otherwise                -> normal formatted price
+ * Returns { text, available } — `available` drives whether the Beli
+ * button should be enabled.
+ */
+function resolveProductPriceDisplay(product) {
+  if (!product) return { text: "", available: true };
+  if (product.is_available === false) {
+    return { text: "Tidak tersedia", available: false };
+  }
+  const label = product.price_label && String(product.price_label).trim();
+  if (label) {
+    return { text: label, available: true };
+  }
+  return { text: formatPrice(product.price), available: true };
+}
+
 /** Set (or create) a <meta name="..."> tag. */
 function setMetaName(name, content) {
   if (!content) return;
@@ -195,4 +276,70 @@ function confirmDialog({ title, message, confirmLabel = "Delete", cancelLabel = 
     document.body.appendChild(overlay);
     cancelBtn.focus();
   });
+}
+
+/* ------------------------------------------------------------
+ * Announcement banner (store_settings.announcement_text), shared
+ * across index.html / product.html / payment.html. Editable from
+ * the dashboard's Store Settings tab.
+ * ------------------------------------------------------------ */
+function getAnnouncementRefs() {
+  const banner = document.getElementById("announceBanner");
+  if (!banner) return null;
+  return {
+    banner,
+    textEl: document.getElementById("announceText"),
+    closeBtn: document.getElementById("announceCloseBtn"),
+  };
+}
+
+/** Wire the ✕ button once per page load. */
+function initAnnouncementBanner() {
+  const refs = getAnnouncementRefs();
+  if (!refs) return;
+  refs.closeBtn.addEventListener("click", () => {
+    refs.banner.hidden = true;
+    const key = refs.banner.dataset.dismissKey;
+    if (key) {
+      try {
+        localStorage.setItem(key, "1");
+      } catch (error) {
+        /* localStorage unavailable (private mode etc.) — ignore, not critical */
+      }
+    }
+  });
+}
+
+/**
+ * Show the banner with `text`, unless the visitor already dismissed this
+ * exact message (tracked per-text, so editing the announcement in the
+ * dashboard makes it reappear even for visitors who closed the old one).
+ */
+function showAnnouncementBanner(text) {
+  const refs = getAnnouncementRefs();
+  if (!refs) return;
+
+  const trimmed = (text || "").trim();
+  if (!trimmed) {
+    refs.banner.hidden = true;
+    return;
+  }
+
+  const key = `announceDismissed:${trimmed}`;
+  refs.banner.dataset.dismissKey = key;
+
+  let dismissed = false;
+  try {
+    dismissed = localStorage.getItem(key) === "1";
+  } catch (error) {
+    dismissed = false;
+  }
+
+  if (dismissed) {
+    refs.banner.hidden = true;
+    return;
+  }
+
+  refs.textEl.textContent = trimmed;
+  refs.banner.hidden = false;
 }

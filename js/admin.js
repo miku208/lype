@@ -90,7 +90,7 @@ async function loadSettingsForm() {
   try {
     const { data, error } = await supabaseClient
       .from("store_settings")
-      .select("id, store_name, store_description, admin_whatsapp, qris_url, dana_number, payment_note, banner_url, hero_media_url")
+      .select("id, store_name, store_description, admin_whatsapp, qris_url, dana_number, payment_note, banner_url, hero_media_url, announcement_text")
       .limit(1)
       .maybeSingle();
 
@@ -105,6 +105,7 @@ async function loadSettingsForm() {
     form.elements.paymentNote.value = data.payment_note || APP_CONFIG.defaultPaymentNote;
     form.elements.bannerUrl.value = data.banner_url || "";
     form.elements.heroMediaUrl.value = data.hero_media_url || "";
+    form.elements.announcementText.value = data.announcement_text || "";
     form.dataset.settingsId = data.id;
 
     if (data.store_name) brandNameEl.textContent = data.store_name;
@@ -150,6 +151,7 @@ async function handleSettingsSubmit(event) {
     payment_note: form.elements.paymentNote.value.trim() || APP_CONFIG.defaultPaymentNote,
     banner_url: form.elements.bannerUrl.value.trim(),
     hero_media_url: form.elements.heroMediaUrl.value.trim(),
+    announcement_text: form.elements.announcementText.value.trim(),
   };
 
   try {
@@ -205,7 +207,7 @@ async function loadProducts() {
   try {
     const { data, error } = await supabaseClient
       .from("products")
-      .select("id, name, slug, description, price, image_url, category_id, is_active, created_at, updated_at, categories ( name )")
+      .select("id, name, slug, description, price, image_url, category_id, is_active, country, price_label, is_available, stock, created_at, updated_at, categories ( name, slug )")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -286,9 +288,18 @@ function renderProductGrid(products) {
     const metaRow = document.createElement("div");
     metaRow.className = "meta-row";
 
+    const priceInfo = resolveProductPriceDisplay(product);
     const priceEl = document.createElement("span");
     priceEl.className = "price";
-    priceEl.textContent = formatPrice(product.price);
+    priceEl.textContent = priceInfo.text;
+
+    if (product.country) {
+      const flag = getCountryFlag(product.country);
+      const countryEl = document.createElement("span");
+      countryEl.className = "status-pill";
+      countryEl.textContent = flag ? `${flag} ${product.country}` : product.country;
+      metaRow.appendChild(countryEl);
+    }
 
     const categoryEl = document.createElement("span");
     categoryEl.className = "status-pill";
@@ -298,7 +309,16 @@ function renderProductGrid(products) {
     pill.className = `status-pill ${product.is_active ? "active" : ""}`.trim();
     pill.textContent = product.is_active ? "Active" : "Inactive";
 
-    metaRow.append(priceEl, categoryEl, pill);
+    const stockValue = Number(product.stock) || 0;
+    const availabilityPill = document.createElement("span");
+    availabilityPill.className = `status-pill ${stockValue > 0 ? "active" : ""}`.trim();
+    availabilityPill.textContent = stockValue > 0 ? "Tersedia" : "Tidak tersedia";
+
+    const stockEl = document.createElement("span");
+    stockEl.className = "status-pill";
+    stockEl.textContent = `Stok: ${stockValue}`;
+
+    metaRow.append(priceEl, categoryEl, pill, availabilityPill, stockEl);
 
     const actionsRow = document.createElement("div");
     actionsRow.className = "row-actions";
@@ -351,16 +371,22 @@ function openProductModal(product = null) {
     form.elements.slug.value = product.slug;
     form.elements.description.value = product.description || "";
     form.elements.price.value = product.price;
+    form.elements.priceLabel.value = product.price_label || "";
+    form.elements.country.value = product.country || "";
+    form.elements.stock.value = Number.isFinite(Number(product.stock)) ? Number(product.stock) : 0;
     form.elements.categoryId.value = product.category_id || "";
     form.elements.imageUrl.value = product.image_url || "";
     form.elements.isActive.checked = product.is_active;
     form.dataset.slugTouched = "true";
     updateImagePreview(preview, product.image_url, "Belum ada gambar");
   } else {
+    form.elements.stock.value = 0;
     form.dataset.slugTouched = "";
     updateImagePreview(preview, null, "Belum ada gambar");
   }
 
+  updateCountryFieldVisibility(form);
+  updateAvailabilityPreview(form);
   overlay.hidden = false;
 }
 
@@ -438,18 +464,35 @@ async function handleProductFormSubmit(event) {
       }
     }
 
+    const stockValue = Math.trunc(Number(form.elements.stock.value));
+    const isNokos = isNokosCategorySelected(form.elements.categoryId);
+
     const payload = {
       name: form.elements.name.value.trim(),
       slug: slugify(form.elements.slug.value.trim()),
       description: form.elements.description.value.trim(),
       price: Number(form.elements.price.value) || 0,
+      price_label: form.elements.priceLabel.value.trim() || null,
+      // Negara NOKOS only ever applies to the NOKOS category — clear it
+      // for every other category even if a stale value is sitting in the
+      // (hidden) field from a previous edit.
+      country: isNokos ? form.elements.country.value.trim() || null : null,
+      // is_available is not sent manually: the products_sync_availability
+      // DB trigger derives it from stock on every insert/update, so admins
+      // never have to keep two conflicting fields in sync by hand.
       category_id: form.elements.categoryId.value || null,
       image_url: imageUrl || null,
       is_active: form.elements.isActive.checked,
+      stock: stockValue,
     };
 
     if (!payload.name || !payload.slug) {
       errorEl.textContent = "Nama dan slug produk wajib diisi.";
+      return;
+    }
+
+    if (!Number.isFinite(stockValue) || stockValue < 0) {
+      errorEl.textContent = "Stok wajib diisi dan tidak boleh negatif.";
       return;
     }
 
@@ -583,9 +626,35 @@ function populateCategorySelect(selectEl) {
     const option = document.createElement("option");
     option.value = category.id;
     option.textContent = category.name;
+    option.dataset.slug = category.slug || "";
     selectEl.appendChild(option);
   });
   selectEl.value = currentValue;
+}
+
+/** True only when the selected category's slug is exactly "nokos". */
+function isNokosCategorySelected(selectEl) {
+  const option = selectEl.options[selectEl.selectedIndex];
+  return !!option && option.dataset.slug === "nokos";
+}
+
+/** Show the "Negara NOKOS" field only for the NOKOS category; hidden (and cleared) otherwise. */
+function updateCountryFieldVisibility(form) {
+  const field = document.getElementById("productCountryField");
+  if (!field) return;
+  const show = isNokosCategorySelected(form.elements.categoryId);
+  field.hidden = !show;
+  if (!show) form.elements.country.value = "";
+}
+
+/** Live "Tersedia"/"Tidak tersedia" preview under the Stok input, mirroring the DB trigger's rule. */
+function updateAvailabilityPreview(form) {
+  const preview = document.getElementById("productAvailabilityPreview");
+  if (!preview) return;
+  const stock = Number(form.elements.stock.value);
+  const available = Number.isFinite(stock) && stock > 0;
+  preview.textContent = available ? "Status: Tersedia" : "Status: Tidak tersedia";
+  preview.className = `availability-preview ${available ? "available" : "unavailable"}`;
 }
 
 function openCategoryModal(category = null) {
@@ -754,6 +823,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("productForm").elements.slug.addEventListener("input", handleSlugInput);
   document.getElementById("productForm").elements.imageFile.addEventListener("change", handleImageFileChange);
   document.getElementById("productForm").elements.imageUrl.addEventListener("input", handleImageUrlInput);
+  document.getElementById("productForm").elements.categoryId.addEventListener("change", (event) =>
+    updateCountryFieldVisibility(event.target.form)
+  );
+  document.getElementById("productForm").elements.stock.addEventListener("input", (event) =>
+    updateAvailabilityPreview(event.target.form)
+  );
 
   document.getElementById("productSearchInput").addEventListener("input", applyProductFilters);
   document.getElementById("productFilterSelect").addEventListener("change", applyProductFilters);

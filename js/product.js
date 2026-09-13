@@ -48,10 +48,26 @@ function renderProduct(product, storeSettings, refs) {
     refs.image.alt = product.name;
   }
 
+  if (product.country) {
+    const flag = getCountryFlag(product.country);
+    refs.countryBadge.textContent = flag ? `${flag} ${product.country}` : product.country;
+    refs.countryBadge.hidden = false;
+  } else {
+    refs.countryBadge.hidden = true;
+  }
+
   refs.category.textContent =
     (product.categories && product.categories.name) || "Produk Digital";
   refs.name.textContent = product.name;
-  refs.price.textContent = formatPrice(product.price);
+
+  const priceInfo = resolveProductPriceDisplay(product);
+  refs.price.textContent = priceInfo.text;
+  refs.price.classList.toggle("unavailable", !priceInfo.available);
+
+  const stockValue = Number(product.stock) || 0;
+  refs.stock.textContent = stockValue > 0 ? `Stok: ${stockValue}` : "Stok habis";
+  refs.stock.classList.toggle("out", stockValue <= 0);
+
   refs.description.textContent = product.description || APP_CONFIG.productDescriptionFallback;
 
   const storeName = (storeSettings && storeSettings.store_name) || APP_CONFIG.storeNameFallback;
@@ -66,7 +82,17 @@ function renderProduct(product, storeSettings, refs) {
     refs.contactBtn.hidden = true;
   }
 
-  refs.beliBtn.href = `payment.html?slug=${encodeURIComponent(product.slug)}`;
+  if (priceInfo.available) {
+    refs.beliBtn.href = `payment.html?slug=${encodeURIComponent(product.slug)}`;
+    refs.beliBtn.classList.remove("is-disabled");
+    refs.beliBtn.removeAttribute("aria-disabled");
+    refs.beliBtn.innerHTML = `<span aria-hidden="true">🛒</span>&nbsp;Beli`;
+  } else {
+    refs.beliBtn.href = "#";
+    refs.beliBtn.classList.add("is-disabled");
+    refs.beliBtn.setAttribute("aria-disabled", "true");
+    refs.beliBtn.innerHTML = "Tidak Tersedia";
+  }
 
   refs.footerNameEl.textContent = `© ${new Date().getFullYear()} ${storeName}`;
   updateProductMeta(product, storeName);
@@ -83,9 +109,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     detail: document.getElementById("productDetail"),
     notFound: document.getElementById("productNotFound"),
     image: document.getElementById("productImage"),
+    countryBadge: document.getElementById("productCountryBadge"),
     category: document.getElementById("productCategory"),
     name: document.getElementById("productName"),
     price: document.getElementById("productPrice"),
+    stock: document.getElementById("productStock"),
     description: document.getElementById("productDescription"),
     beliBtn: document.getElementById("beliButton"),
     contactBtn: document.getElementById("contactWhatsApp"),
@@ -93,6 +121,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const brandEl = document.getElementById("brandName");
+
+  initAnnouncementBanner();
+  refs.beliBtn.addEventListener("click", (event) => {
+    if (refs.beliBtn.classList.contains("is-disabled")) event.preventDefault();
+  });
 
   const slug = getSlugFromUrl();
   if (!slug) {
@@ -105,18 +138,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const [{ data: product, error: productError }, { data: settings }] = await Promise.all([
       supabaseClient
         .from("products")
-        .select("name, slug, description, price, image_url, categories ( name, slug )")
+        .select("name, slug, description, price, image_url, country, price_label, is_available, stock, categories ( name, slug )")
         .eq("slug", slug)
         .eq("is_active", true)
         .maybeSingle(),
       supabaseClient
         .from("store_settings")
-        .select("store_name, admin_whatsapp")
+        .select("store_name, admin_whatsapp, announcement_text")
         .limit(1)
         .maybeSingle(),
     ]);
 
     refs.loading.hidden = true;
+    showAnnouncementBanner(settings && settings.announcement_text);
 
     if (brandEl && settings && settings.store_name) {
       brandEl.textContent = settings.store_name;

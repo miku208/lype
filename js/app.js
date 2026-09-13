@@ -8,11 +8,13 @@ async function loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl,
   try {
     const { data, error } = await supabaseClient
       .from("store_settings")
-      .select("store_name, store_description, admin_whatsapp, banner_url, hero_media_url")
+      .select("store_name, store_description, admin_whatsapp, banner_url, hero_media_url, announcement_text")
       .limit(1)
       .maybeSingle();
 
     if (error) throw error;
+
+    showAnnouncementBanner(data && data.announcement_text);
 
     const storeName = (data && data.store_name) || APP_CONFIG.storeNameFallback;
     const storeDescription =
@@ -147,6 +149,14 @@ function renderProductCard(product) {
     thumb.append(icon);
   }
 
+  if (product.country) {
+    const flag = getCountryFlag(product.country);
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = flag ? `${flag} ${product.country}` : product.country;
+    thumb.appendChild(badge);
+  }
+
   const body = document.createElement("div");
   body.className = "body";
 
@@ -162,14 +172,21 @@ function renderProductCard(product) {
     body.appendChild(desc);
   }
 
+  const priceInfo = resolveProductPriceDisplay(product);
   const price = document.createElement("div");
-  price.className = "price";
-  price.textContent = formatPrice(product.price);
+  price.className = "price" + (priceInfo.available ? "" : " unavailable");
+  price.textContent = priceInfo.text;
   body.appendChild(price);
+
+  const stockValue = Number(product.stock) || 0;
+  const stockEl = document.createElement("div");
+  stockEl.className = "stock" + (stockValue > 0 ? "" : " out");
+  stockEl.textContent = stockValue > 0 ? `Stok: ${stockValue}` : "Stok habis";
+  body.appendChild(stockEl);
 
   const cta = document.createElement("div");
   cta.className = "cta";
-  cta.textContent = "Lihat Produk →";
+  cta.textContent = priceInfo.available ? "Lihat Produk →" : "Lihat Detail →";
   body.appendChild(cta);
   card.append(thumb, body);
   return card;
@@ -285,7 +302,7 @@ async function loadProductsInto(gridEl, filterEl) {
     const [{ data, error }, categories] = await Promise.all([
       supabaseClient
         .from("products")
-        .select("name, slug, description, price, image_url, categories ( name, slug )")
+        .select("name, slug, description, price, image_url, country, price_label, is_available, stock, categories ( name, slug )")
         .eq("is_active", true)
         .order("created_at", { ascending: false }),
       loadCategoriesData(),
@@ -332,9 +349,11 @@ function getSheetRefs() {
     sheet: document.getElementById("productSheet"),
     closeBtn: document.getElementById("sheetCloseBtn"),
     image: document.getElementById("sheetProductImage"),
+    countryBadge: document.getElementById("sheetCountryBadge"),
     category: document.getElementById("sheetProductCategory"),
     name: document.getElementById("sheetProductName"),
     price: document.getElementById("sheetProductPrice"),
+    stock: document.getElementById("sheetProductStock"),
     description: document.getElementById("sheetProductDescription"),
     beliBtn: document.getElementById("sheetBeliBtn"),
     contactBtn: document.getElementById("sheetContactBtn"),
@@ -359,10 +378,37 @@ function openProductSheet(product, options = {}) {
 
   refs.category.textContent = (product.categories && product.categories.name) || "Produk Digital";
   refs.name.textContent = product.name;
-  refs.price.textContent = formatPrice(product.price);
   refs.description.textContent = product.description || APP_CONFIG.productDescriptionFallback;
 
-  refs.beliBtn.href = `payment.html?slug=${encodeURIComponent(product.slug)}`;
+  if (product.country) {
+    const flag = getCountryFlag(product.country);
+    refs.countryBadge.textContent = flag ? `${flag} ${product.country}` : product.country;
+    refs.countryBadge.hidden = false;
+  } else {
+    refs.countryBadge.hidden = true;
+  }
+
+  const priceInfo = resolveProductPriceDisplay(product);
+  refs.price.textContent = priceInfo.text;
+  refs.price.classList.toggle("unavailable", !priceInfo.available);
+
+  if (refs.stock) {
+    const stockValue = Number(product.stock) || 0;
+    refs.stock.textContent = stockValue > 0 ? `Stok: ${stockValue}` : "Stok habis";
+    refs.stock.classList.toggle("out", stockValue <= 0);
+  }
+
+  if (priceInfo.available) {
+    refs.beliBtn.href = `payment.html?slug=${encodeURIComponent(product.slug)}`;
+    refs.beliBtn.classList.remove("is-disabled");
+    refs.beliBtn.removeAttribute("aria-disabled");
+    refs.beliBtn.innerHTML = `<span aria-hidden="true">🛒</span>&nbsp;Beli`;
+  } else {
+    refs.beliBtn.href = "#";
+    refs.beliBtn.classList.add("is-disabled");
+    refs.beliBtn.setAttribute("aria-disabled", "true");
+    refs.beliBtn.innerHTML = "Tidak Tersedia";
+  }
 
   const storeName = sheetState.storeName || APP_CONFIG.storeNameFallback;
   const waMessage = `Halo ${storeName}, saya tertarik dengan produk "${product.name}".`;
@@ -411,6 +457,9 @@ function initProductSheet() {
   if (!refs) return;
 
   refs.closeBtn.addEventListener("click", () => closeProductSheet());
+  refs.beliBtn.addEventListener("click", (event) => {
+    if (refs.beliBtn.classList.contains("is-disabled")) event.preventDefault();
+  });
   refs.overlay.addEventListener("click", (event) => {
     if (event.target === refs.overlay) closeProductSheet();
   });
@@ -442,6 +491,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const heroMediaWrapEl = document.getElementById("heroMedia");
 
   initProductSheet();
+  initAnnouncementBanner();
 
   const settings = await loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl, footerWaEl, bannerWrapEl, bannerImgEl, heroMediaWrapEl });
   if (settings) {
