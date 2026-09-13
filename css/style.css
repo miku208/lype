@@ -696,11 +696,56 @@ h1, h2, h3 {
   font-size: 0.98rem;
 }
 
+.price.unavailable {
+  color: var(--muted) !important;
+}
+
+.stock {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.stock.out {
+  color: var(--accent-deep, #c0392b);
+  font-weight: 700;
+}
+
 .product-card .cta {
   color: var(--accent-deep);
   font-size: 0.82rem;
   font-weight: 700;
   margin-top: 2px;
+}
+
+/* ---------- country badge (NOKOS-style products) ---------- */
+.country-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.country-badge[hidden] {
+  display: none;
+}
+
+/* Reuses the existing .product-card .badge position/style (top-left
+   over the thumbnail) for the country flag + name. */
+
+.btn:disabled,
+.btn.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--muted);
+  box-shadow: none;
+  transform: none;
 }
 
 /* ---------- empty / loading states ---------- */
@@ -713,6 +758,64 @@ h1, h2, h3 {
   background: var(--surface);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
+}
+
+/* ---------- announcement banner (editable via dashboard) ---------- */
+.announce-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 22px 0 0;
+  padding: 16px 16px 16px 14px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-1);
+}
+
+.announce-banner[hidden] {
+  display: none;
+}
+
+.announce-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.announce-text {
+  flex: 1;
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.announce-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease);
+}
+
+.announce-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 /* ---------- product quick-view bottom sheet ---------- */

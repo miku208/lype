@@ -677,6 +677,23 @@ h1, h2, h3 {
   background: var(--success-bg);
 }
 
+/* Read-only "Tersedia" / "Tidak tersedia" preview under the Stok field,
+   updated live from the number input — mirrors what the products_sync_availability
+   DB trigger will set, so admins never have to reconcile two fields by hand. */
+.availability-preview {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.availability-preview.available {
+  color: var(--success-ink);
+}
+
+.availability-preview.unavailable {
+  color: var(--danger, #c0392b);
+}
+
 .manage-card .row-actions {
   display: flex;
   gap: 14px;
