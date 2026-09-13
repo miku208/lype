@@ -19,47 +19,23 @@ function showNotFound(refs) {
   if (refs.unavailable) refs.unavailable.hidden = true;
 }
 
-/**
- * Stock is the source of truth for purchasability (see the
- * products_sync_availability DB trigger in supabase/schema.sql, which
- * keeps is_available in sync with stock). Falls back to is_available
- * if stock wasn't selected/returned, for safety.
- */
-function validateStock(product) {
-  if (!product) return false;
-  if (typeof product.stock === "number") return product.stock > 0;
-  return product.is_available !== false;
-}
-
-/** Only "qris" or "dana" are valid payment methods on this page. */
-function validatePaymentMethod(method) {
-  return method === "qris" || method === "dana";
-}
-
-/** Reflects the active payment method in the toggle buttons + panels. */
-function updatePaymentMethodUI(refs, method) {
-  const isQris = method === "qris";
-  refs.methodQrisBtn.classList.toggle("active", isQris);
-  refs.methodDanaBtn.classList.toggle("active", !isQris);
-  refs.methodQrisBtn.setAttribute("aria-selected", String(isQris));
-  refs.methodDanaBtn.setAttribute("aria-selected", String(!isQris));
-  refs.qrisPanel.hidden = !isQris;
-  refs.danaPanel.hidden = isQris;
-}
-
-/** Wire up the QRIS/DANA toggle buttons; keeps refs.currentMethod in sync for the WA message. */
+/** Wire up the QRIS/DANA toggle buttons and reveal the active panel. */
 function initMethodToggle(refs) {
-  function switchPaymentMethod(method) {
-    if (!validatePaymentMethod(method)) return;
-    refs.currentMethod = method;
-    updatePaymentMethodUI(refs, method);
+  function activate(method) {
+    const isQris = method === "qris";
+    refs.methodQrisBtn.classList.toggle("active", isQris);
+    refs.methodDanaBtn.classList.toggle("active", !isQris);
+    refs.methodQrisBtn.setAttribute("aria-selected", String(isQris));
+    refs.methodDanaBtn.setAttribute("aria-selected", String(!isQris));
+    refs.qrisPanel.hidden = !isQris;
+    refs.danaPanel.hidden = isQris;
   }
 
-  refs.methodQrisBtn.addEventListener("click", () => switchPaymentMethod("qris"));
-  refs.methodDanaBtn.addEventListener("click", () => switchPaymentMethod("dana"));
+  refs.methodQrisBtn.addEventListener("click", () => activate("qris"));
+  refs.methodDanaBtn.addEventListener("click", () => activate("dana"));
 
   // Default: QRIS selected.
-  switchPaymentMethod("qris");
+  activate("qris");
 }
 
 /** Populates the QRIS and DANA panels from store_settings, each with its own empty state. */
@@ -115,37 +91,6 @@ function initCopyDanaButton(refs) {
   });
 }
 
-/**
- * Builds the "Hubungi Admin" WhatsApp message: product, price, chosen
- * payment method, and the customer's free-text request (or "Tidak ada"
- * if left blank). Plain text only — encodeURIComponent() (in
- * buildWhatsAppUrl / buildWhatsAppLink) handles newlines, emoji, and
- * special characters safely, so nothing here needs manual escaping.
- */
-function buildWhatsAppMessage({ storeName, productName, priceText, method, request }) {
-  const methodLabel = method === "dana" ? "DANA" : "QRIS";
-  const trimmedRequest = (request || "").trim();
-  const requestLine = trimmedRequest || "Tidak ada";
-
-  return `Halo Admin ${storeName},
-
-Saya ingin membeli:
-
-Produk: ${productName}
-Harga: ${priceText}
-Metode Pembayaran: ${methodLabel}
-
-Request Customer:
-${requestLine}
-
-Mohon diproses.`;
-}
-
-/** Thin wrapper over buildWhatsAppLink, named to match the WA-URL-building step. */
-function buildWhatsAppUrl(rawNumber, message) {
-  return buildWhatsAppLink(rawNumber, message);
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
   const refs = {
     loading: document.getElementById("paymentLoading"),
@@ -169,10 +114,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     danaEmptyState: document.getElementById("danaEmptyState"),
     copyDanaBtn: document.getElementById("copyDanaBtn"),
     paymentNoteText: document.getElementById("paymentNoteText"),
-    customerRequestInput: document.getElementById("customerRequestInput"),
     contactAdminBtn: document.getElementById("contactAdminBtn"),
     footerNameEl: document.getElementById("footerStoreName"),
-    currentMethod: "qris",
   };
 
   const brandEl = document.getElementById("brandName");
@@ -190,7 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const [{ data: product, error: productError }, { data: settings }] = await Promise.all([
       supabaseClient
         .from("products")
-        .select("name, slug, description, price, image_url, is_available, stock")
+        .select("name, slug, description, price, image_url, is_available")
         .eq("slug", slug)
         .eq("is_active", true)
         .maybeSingle(),
@@ -215,7 +158,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    if (!validateStock(product)) {
+    if (product.is_available === false) {
       refs.loading.hidden = true;
       refs.section.hidden = true;
       refs.notFound.hidden = true;
@@ -243,33 +186,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     initCopyDanaButton(refs);
 
     const whatsapp = settings && settings.admin_whatsapp;
-    const priceText = refs.orderPrice.textContent;
+    const nominal = formatPrice(product.price).replace(/^Rp\s*/, "");
+    const waMessage = `Hello Admin ${storeName} 👋
 
-    if (!whatsapp) {
+Saya sudah melakukan pembayaran.
+
+🛒 Produk: ${product.name}
+💳 Nominal: Rp ${nominal}
+
+Mohon dibantu proses pesanannya. 🙏
+
+Terima kasih, Admin! 💜`;
+    const waLink = buildWhatsAppLink(whatsapp, waMessage);
+    if (waLink) {
+      refs.contactAdminBtn.href = waLink;
+    } else {
       refs.contactAdminBtn.href = "#";
       refs.contactAdminBtn.addEventListener("click", (event) => {
         event.preventDefault();
         showToast("Nomor WhatsApp admin belum diatur.", "error");
-      });
-    } else {
-      // Built fresh on click (not once on load) so it always reflects
-      // whichever payment method is currently selected and whatever the
-      // customer has typed into Request Customer at that moment.
-      refs.contactAdminBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        const message = buildWhatsAppMessage({
-          storeName,
-          productName: product.name,
-          priceText,
-          method: refs.currentMethod,
-          request: refs.customerRequestInput ? refs.customerRequestInput.value : "",
-        });
-        const url = buildWhatsAppUrl(whatsapp, message);
-        if (url) {
-          window.open(url, "_blank", "noopener");
-        } else {
-          showToast("Nomor WhatsApp admin belum diatur.", "error");
-        }
       });
     }
   } catch (error) {
