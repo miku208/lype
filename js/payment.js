@@ -187,14 +187,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const whatsapp = settings && settings.admin_whatsapp;
     const nominal = formatPrice(product.price).replace(/^Rp\s*/, "");
-    const waMessage = `Hallo Admin ${storeName} 👋
+    const waMessage = `Hello Admin ${storeName} 👋
 
-Saya tertarik dengan salah satu produk di ${storeName}.
+Saya sudah melakukan pembayaran.
 
-🛒 Produk: ${product.name}
-💳 Nominal: Rp${nominal}
+🛒 Produk : ${product.name}
+💳 Nominal : Rp${nominal}
 
-Mohon informasi dan bantuannya. 🙏
+Mohon dibantu proses pesanannya. 🙏
+
 Terima kasih, Admin!`;
     const waLink = buildWhatsAppLink(whatsapp, waMessage);
     if (waLink) {
