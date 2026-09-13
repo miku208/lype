@@ -33,6 +33,13 @@
     </div>
   </header>
 
+  <!-- Pengumuman singkat, isi & bisa dimatikan lewat Store Settings di dashboard -->
+  <div class="announce-banner" id="announceBanner" hidden>
+    <span class="announce-icon" aria-hidden="true">📢</span>
+    <p class="announce-text" id="announceText"></p>
+    <button type="button" class="announce-close" id="announceCloseBtn" aria-label="Tutup pengumuman">✕</button>
+  </div>
+
   <main>
     <div class="container">
       <p class="state-message loading-text" id="paymentLoading">Memuat...</p>
@@ -87,7 +94,7 @@
           </div>
 
           <a class="btn full" id="contactAdminBtn" href="#" target="_blank" rel="noopener">
-            Hubungi Admin →
+            📤&nbsp;Kirim Bukti Pembayaran
           </a>
         </div>
       </section>
@@ -95,6 +102,12 @@
       <section class="not-found" id="paymentNotFound" hidden>
         <h1>Produk tidak ditemukan</h1>
         <p>Produk yang ingin kamu bayar tidak tersedia atau sudah tidak aktif.</p>
+        <a class="btn" href="index.html">Kembali ke Katalog</a>
+      </section>
+
+      <section class="not-found" id="paymentUnavailable" hidden>
+        <h1>Produk sedang tidak tersedia</h1>
+        <p>Maaf, produk ini sedang tidak tersedia untuk dibeli saat ini.</p>
         <a class="btn" href="index.html">Kembali ke Katalog</a>
       </section>
     </div>
