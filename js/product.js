@@ -72,7 +72,16 @@ function renderProduct(product, storeSettings, refs) {
 
   const storeName = (storeSettings && storeSettings.store_name) || APP_CONFIG.storeNameFallback;
   const whatsapp = storeSettings && storeSettings.admin_whatsapp;
-  const waMessage = `Halo ${storeName}, saya tertarik dengan produk "${product.name}".`;
+  const nominal = formatPrice(product.price).replace(/^Rp\s*/, "");
+  const waMessage = `Hallo Admin ${storeName} 👋
+
+Saya tertarik dengan salah satu produk di ${storeName}.
+
+🛒 Produk: ${product.name}
+💳 Nominal: Rp${nominal}
+
+Mohon informasi dan bantuannya. 🙏
+Terima kasih, Admin!`;
   const waLink = buildWhatsAppLink(whatsapp, waMessage);
 
   if (waLink) {

@@ -411,7 +411,16 @@ function openProductSheet(product, options = {}) {
   }
 
   const storeName = sheetState.storeName || APP_CONFIG.storeNameFallback;
-  const waMessage = `Halo ${storeName}, saya tertarik dengan produk "${product.name}".`;
+  const nominal = formatPrice(product.price).replace(/^Rp\s*/, "");
+  const waMessage = `Hallo Admin ${storeName} 👋
+
+Saya tertarik dengan salah satu produk di ${storeName}.
+
+🛒 Produk: ${product.name}
+💳 Nominal: Rp${nominal}
+
+Mohon informasi dan bantuannya. 🙏
+Terima kasih, Admin!`;
   const waLink = buildWhatsAppLink(sheetState.whatsapp, waMessage);
   if (waLink) {
     refs.contactBtn.href = waLink;
