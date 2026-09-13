@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lyppe Store — Katalog Produk Digital</title>
+  <title>Lyppe Market — Katalog Produk Digital</title>
   <meta name="title" content="Lyppe Market — Katalog Produk Digital" />
-  <meta name="description" content="Katalog produk digital Lyppe Store." />
-  <meta name="author" content="Lyppe Store" />
+  <meta name="description" content="Katalog produk digital Lyppe Market." />
+  <meta name="author" content="Lyppe Market" />
   <meta name="theme-color" content="#0f0f0e" />
   <link rel="canonical" href="https://example.com/" />
 
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://example.com/" />
   <meta property="og:title" content="Lyppe Market — Katalog Produk Digital" />
-  <meta property="og:description" content="Katalog produk digital Lyppe Store." />
+  <meta property="og:description" content="Katalog produk digital Lyppe Market." />
   <meta property="og:image" content="https://u.pone.rs/jzumjqkw.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -26,7 +26,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:url" content="https://example.com/" />
   <meta name="twitter:title" content="Lyppe Market — Katalog Produk Digital" />
-  <meta name="twitter:description" content="Katalog produk digital Lyppe Store." />
+  <meta name="twitter:description" content="Katalog produk digital Lyppe Market." />
   <meta name="twitter:image" content="https://u.pone.rs/jzumjqkw.jpg" />
   <meta name="twitter:image:alt" content="Lyppe Market — Katalog Produk Digital" />
 
@@ -47,7 +47,7 @@
     <div class="container">
       <a href="index.html" class="brand brand--has-logo">
         <img src="assets/logo.png" alt="Logo" class="brand-logo" onerror="this.remove(); this.parentElement.classList.remove('brand--has-logo')" />
-        <span id="brandName">Lyppe Store</span>
+        <span id="brandName">Lyppe Market</span>
       </a>
       <nav class="site-nav" aria-label="Navigasi utama">
         <a href="index.html">Produk</a>
@@ -55,7 +55,7 @@
     </div>
   </header>
 
-  <!-- Banner tampil hanya jika store_settings.banner_url terisi -->
+  <!-- Banner tampil hanya jika MARKET_settings.banner_url terisi -->
   <div class="store-banner" id="storeBanner" hidden>
     <div class="frame">
       <img id="storeBannerImage" src="" alt="" />
@@ -66,7 +66,7 @@
     <section class="hero">
       <div class="container">
         <div class="hero-copy">
-          <p class="hero-eyebrow">LYPPE STORE</p>
+          <p class="hero-eyebrow">LYPPE Market</p>
           <h1 id="storeHeading">Produk digital yang siap dipakai.</h1>
           <p class="lede" id="storeDescription">Katalog produk digital.</p>
           <div class="hero-actions">
@@ -114,13 +114,22 @@
         <div class="product-grid" id="productGrid">
           <p class="state-message loading-text">Memuat produk...</p>
         </div>
+
+        <!-- Pengumuman: sengaja diletakkan di bawah katalog, bukan di
+             atas, supaya tampil seperti banner setelah produk — isi &
+             bisa dimatikan lewat Store Settings di dashboard. -->
+        <div class="announce-banner" id="announceBanner" hidden>
+          <span class="announce-icon" aria-hidden="true">📢</span>
+          <p class="announce-text" id="announceText"></p>
+          <button type="button" class="announce-close" id="announceCloseBtn" aria-label="Tutup pengumuman">✕</button>
+        </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="container">
-      <span id="footerStoreName">© Lyppe Store</span>
+      <span id="footerStoreName">© Lyppe Market</span>
       <a id="footerWhatsApp" href="#" hidden>Hubungi via WhatsApp</a>
     </div>
   </footer>
@@ -137,9 +146,11 @@
           <img id="sheetProductImage" src="" alt="" />
         </div>
         <div class="sheet-body">
+          <span class="country-badge" id="sheetCountryBadge" hidden></span>
           <span class="eyebrow" id="sheetProductCategory">Produk Digital</span>
           <h2 id="sheetProductName"></h2>
           <div class="price" id="sheetProductPrice"></div>
+          <div class="stock" id="sheetProductStock"></div>
           <p class="description" id="sheetProductDescription"></p>
         </div>
       </div>

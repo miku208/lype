@@ -14,15 +14,15 @@
  */
 
 const SUPABASE_CONFIG = {
-  url: "https://uprpkhgfikpbwjaiksjs.supabase.co",
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwcnBraGdmaWtwYndqYWlrc2pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTE3MTIsImV4cCI6MjEwNDY4NzcxMn0.9Syfetnrqp5BFNOTjHvHAxieLxuji8Hcybajlci07KU",
+  url: "https://sdxuudkutuocicokfucw.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkeHV1ZGt1dHVvY2ljb2tmdWN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyNDkwMDEsImV4cCI6MjEwNDgyNTAwMX0.EO1fmeKLoWuwOI5iYsTID9FhHpY298uvy8gNC_20C1M",
 };
 
 const APP_CONFIG = {
   // Admin path is an obscurity convenience, NOT a security boundary.
   // Real protection comes from Supabase Auth + RLS (see auth.js / supabase/schema.sql).
   adminPath: "/manage-x7k/",
-  siteUrl: "https://lyppemarket.web.id/",
+  siteUrl: "http://localhost:3000",
   storeNameFallback: "Lyppe Store",
   storeDescriptionFallback: "Digital product simpel, cepat, dan mudah.",
   productDescriptionFallback: "Lihat detail produk di Lyppe Store.",

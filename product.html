@@ -54,6 +54,13 @@
     </div>
   </header>
 
+  <!-- Pengumuman singkat, isi & bisa dimatikan lewat Store Settings di dashboard -->
+  <div class="announce-banner" id="announceBanner" hidden>
+    <span class="announce-icon" aria-hidden="true">📢</span>
+    <p class="announce-text" id="announceText"></p>
+    <button type="button" class="announce-close" id="announceCloseBtn" aria-label="Tutup pengumuman">✕</button>
+  </div>
+
   <main>
     <div class="container">
       <p class="state-message loading-text" id="productLoading">Memuat produk...</p>
@@ -63,9 +70,11 @@
           <img id="productImage" src="" alt="" />
         </div>
         <div>
+          <span class="country-badge" id="productCountryBadge" hidden></span>
           <span class="eyebrow" id="productCategory">Produk Digital</span>
           <h1 id="productName"></h1>
           <div class="price" id="productPrice"></div>
+          <div class="stock" id="productStock"></div>
           <p class="description" id="productDescription"></p>
 
           <div class="action-row">
