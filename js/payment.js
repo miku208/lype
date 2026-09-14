@@ -19,9 +19,16 @@ function showNotFound(refs) {
   if (refs.unavailable) refs.unavailable.hidden = true;
 }
 
-/** Wire up the QRIS/DANA toggle buttons and reveal the active panel. */
-function initMethodToggle(refs) {
+/**
+ * Wire up the QRIS/DANA toggle buttons and reveal the active panel.
+ * `onChange(method)` fires on every switch (and once at startup) so the
+ * caller can keep the WhatsApp message in sync with the chosen method.
+ */
+function initMethodToggle(refs, onChange) {
+  let current = "qris";
+
   function activate(method) {
+    current = method;
     const isQris = method === "qris";
     refs.methodQrisBtn.classList.toggle("active", isQris);
     refs.methodDanaBtn.classList.toggle("active", !isQris);
@@ -29,6 +36,7 @@ function initMethodToggle(refs) {
     refs.methodDanaBtn.setAttribute("aria-selected", String(!isQris));
     refs.qrisPanel.hidden = !isQris;
     refs.danaPanel.hidden = isQris;
+    if (onChange) onChange(method);
   }
 
   refs.methodQrisBtn.addEventListener("click", () => activate("qris"));
@@ -36,18 +44,24 @@ function initMethodToggle(refs) {
 
   // Default: QRIS selected.
   activate("qris");
+
+  return () => current;
 }
 
 /** Populates the QRIS and DANA panels from store_settings, each with its own empty state. */
 function renderPaymentMethods(settings, refs) {
-  const qrisUrl = settings && settings.qris_url;
+  const qrisUrl = sanitizeUrl(settings && settings.qris_url);
   if (qrisUrl) {
     refs.qrisImage.src = qrisUrl;
     refs.qrisFrame.hidden = false;
     refs.qrisEmptyState.hidden = true;
+    refs.downloadQrisBtn.href = qrisUrl;
+    refs.downloadQrisBtn.hidden = false;
   } else {
     refs.qrisFrame.hidden = true;
     refs.qrisEmptyState.hidden = false;
+    refs.downloadQrisBtn.hidden = true;
+    refs.downloadQrisBtn.removeAttribute("href");
   }
 
   const danaNumber = settings && settings.dana_number;
@@ -109,11 +123,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     qrisFrame: document.getElementById("qrisFrame"),
     qrisImage: document.getElementById("qrisImage"),
     qrisEmptyState: document.getElementById("qrisEmptyState"),
+    downloadQrisBtn: document.getElementById("downloadQrisBtn"),
     danaRow: document.getElementById("danaRow"),
     danaNumber: document.getElementById("danaNumber"),
     danaEmptyState: document.getElementById("danaEmptyState"),
     copyDanaBtn: document.getElementById("copyDanaBtn"),
     paymentNoteText: document.getElementById("paymentNoteText"),
+    customerRequestInput: document.getElementById("customerRequestInput"),
     contactAdminBtn: document.getElementById("contactAdminBtn"),
     footerNameEl: document.getElementById("footerStoreName"),
   };
@@ -171,7 +187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     refs.unavailable.hidden = true;
     refs.backLink.href = `product.html?slug=${encodeURIComponent(product.slug)}`;
 
-    refs.orderImage.src = product.image_url || "assets/placeholder.svg";
+    refs.orderImage.src = sanitizeUrl(product.image_url) || "assets/placeholder.svg";
     refs.orderImage.alt = product.name;
     refs.orderImage.onerror = () => {
       refs.orderImage.src = "assets/placeholder.svg";
@@ -182,26 +198,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.title = `Pembayaran — ${product.name} — ${storeName}`;
 
     renderPaymentMethods(settings, refs);
-    initMethodToggle(refs);
     initCopyDanaButton(refs);
 
     const whatsapp = settings && settings.admin_whatsapp;
     const nominal = formatPrice(product.price).replace(/^Rp\s*/, "");
-    const waMessage = `Hello Admin ${storeName} 👋
+
+    /** Rebuild the WA link from the currently selected method + request text. */
+    function refreshWaLink(method) {
+      const methodLabel = method === "dana" ? "DANA" : "QRIS";
+      const requestText = refs.customerRequestInput.value.trim();
+
+      const waMessage = `Hello Admin ${storeName} 👋
 
 Saya sudah melakukan pembayaran.
 
 🛒 Produk : ${product.name}
 💳 Nominal : Rp${nominal}
+🧾 Metode : ${methodLabel}${requestText ? `\n📝 Request : ${requestText}` : ""}
 
 Mohon dibantu proses pesanannya. 🙏
 
 Terima kasih, Admin!`;
-    const waLink = buildWhatsAppLink(whatsapp, waMessage);
-    if (waLink) {
-      refs.contactAdminBtn.href = waLink;
-    } else {
-      refs.contactAdminBtn.href = "#";
+
+      const waLink = buildWhatsAppLink(whatsapp, waMessage);
+      if (waLink) {
+        refs.contactAdminBtn.href = waLink;
+      } else {
+        refs.contactAdminBtn.href = "#";
+      }
+    }
+
+    const getCurrentMethod = initMethodToggle(refs, refreshWaLink);
+    refs.customerRequestInput.addEventListener("input", () => refreshWaLink(getCurrentMethod()));
+
+    if (!whatsapp) {
       refs.contactAdminBtn.addEventListener("click", (event) => {
         event.preventDefault();
         showToast("Nomor WhatsApp admin belum diatur.", "error");

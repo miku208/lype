@@ -1,7 +1,12 @@
 /**
  * app.js
- * Shared/public functionality: store settings + product catalog
- * for the homepage (index.html).
+ * Shared/public functionality: store settings + the nested catalog
+ * browsing flow for the homepage (index.html).
+ *
+ * Flow: Etalase (top-level catalogs) -> Sub-catalogs -> Products.
+ * A top-level catalog with no sub-catalogs is treated as a leaf and
+ * shows its own products directly (keeps flat/legacy catalogs working
+ * without forcing every catalog to have a sub-catalog layer).
  */
 
 async function loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl, footerWaEl, bannerWrapEl, bannerImgEl, heroMediaWrapEl }) {
@@ -29,8 +34,9 @@ async function loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl,
     if (footerNameEl) footerNameEl.textContent = `© ${new Date().getFullYear()} ${storeName}`;
 
     if (bannerWrapEl && bannerImgEl) {
-      if (bannerUrl) {
-        bannerImgEl.src = bannerUrl;
+      const safeBannerUrl = sanitizeUrl(bannerUrl);
+      if (safeBannerUrl) {
+        bannerImgEl.src = safeBannerUrl;
         bannerImgEl.alt = storeName;
         bannerWrapEl.hidden = false;
       } else {
@@ -78,7 +84,8 @@ async function loadStoreSettingsInto({ brandEl, headingEl, descEl, footerNameEl,
  * Fills the hero visual with a real image/GIF/video when
  * store_settings.hero_media_url is set; otherwise hides the wrap.
  */
-function renderHeroMedia(wrapEl, url, storeName) {
+function renderHeroMedia(wrapEl, rawUrl, storeName) {
+  const url = sanitizeUrl(rawUrl);
   if (!url) {
     wrapEl.hidden = true;
     wrapEl.innerHTML = "";
@@ -107,6 +114,9 @@ function renderHeroMedia(wrapEl, url, storeName) {
   wrapEl.hidden = false;
 }
 
+/* ------------------------------------------------------------
+ * Product card (used inside a leaf catalog's product grid)
+ * ------------------------------------------------------------ */
 function renderProductCard(product) {
   const card = document.createElement("a");
   card.className = "product-card";
@@ -124,10 +134,11 @@ function renderProductCard(product) {
   });
 
   const thumb = document.createElement("div");
-  if (product.image_url) {
+  const safeImageUrl = sanitizeUrl(product.image_url);
+  if (safeImageUrl) {
     thumb.className = "thumb";
     const img = document.createElement("img");
-    img.src = product.image_url;
+    img.src = safeImageUrl;
     img.alt = product.name;
     img.loading = "lazy";
     img.onerror = () => {
@@ -192,152 +203,401 @@ function renderProductCard(product) {
   return card;
 }
 
+/** Catalog / sub-catalog card — same visual language as a product card. */
+function renderCatalogCard(catalogItem, onClick) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "product-card catalog-card";
+  card.dataset.slug = catalogItem.slug;
+  card.addEventListener("click", () => onClick(catalogItem));
+
+  const thumb = document.createElement("div");
+  const safeImageUrl = sanitizeUrl(catalogItem.image_url);
+  if (safeImageUrl) {
+    thumb.className = "thumb";
+    const img = document.createElement("img");
+    img.src = safeImageUrl;
+    img.alt = catalogItem.name;
+    img.loading = "lazy";
+    img.onerror = () => {
+      img.remove();
+      thumb.className = "thumb placeholder";
+      const icon = document.createElement("div");
+      icon.className = "placeholder-icon";
+      icon.textContent = (catalogItem.name || "?").charAt(0).toUpperCase();
+      icon.setAttribute("aria-hidden", "true");
+      thumb.appendChild(icon);
+    };
+    thumb.appendChild(img);
+  } else {
+    thumb.className = "thumb placeholder";
+    const icon = document.createElement("div");
+    icon.className = "placeholder-icon";
+    icon.textContent = (catalogItem.name || "?").charAt(0).toUpperCase();
+    icon.setAttribute("aria-hidden", "true");
+    thumb.append(icon);
+  }
+
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = catalogItem.name;
+  body.appendChild(name);
+
+  if (catalogItem.description) {
+    const desc = document.createElement("div");
+    desc.className = "desc";
+    desc.textContent = catalogItem.description;
+    body.appendChild(desc);
+  }
+
+  const cta = document.createElement("div");
+  cta.className = "cta";
+  cta.textContent = "Lihat →";
+  body.appendChild(cta);
+
+  card.append(thumb, body);
+  return card;
+}
+
 function updateProductCountDisplays(count) {
-  const heroCountEl = document.getElementById("heroProductCount");
   const chipEl = document.getElementById("productCountChip");
   const chipValueEl = document.getElementById("productCountValue");
-
-  if (heroCountEl) heroCountEl.textContent = String(count);
   if (chipValueEl) chipValueEl.textContent = String(count);
   if (chipEl) chipEl.hidden = count === 0;
 }
 
+async function loadHeroProductCount() {
+  const heroCountEl = document.getElementById("heroProductCount");
+  if (!heroCountEl) return;
+  try {
+    const { count, error } = await supabaseClient
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true);
+    if (error) throw error;
+    heroCountEl.textContent = String(count || 0);
+  } catch (error) {
+    console.error(error);
+    heroCountEl.textContent = "–";
+  }
+}
+
 /* ------------------------------------------------------------
- * Category filter + search (client-side, over the already-loaded
- * active product list — keeps the storefront snappy without an
- * extra round-trip per click).
+ * Nested catalog navigation state machine.
+ * level: 'catalogs' | 'subcatalogs' | 'products'
  * ------------------------------------------------------------ */
-let catalogState = {
+let viewState = {
+  level: "catalogs",
+  catalog: null, // current top-level catalog (or leaf catalog) record
+  subcatalog: null, // current sub-catalog record, if any
   products: [],
-  categories: [],
-  activeCategorySlug: "",
   query: "",
 };
 
-function renderCategoryChips(filterEl) {
-  if (!filterEl) return;
+async function fetchTopCatalogs() {
+  const { data, error } = await supabaseClient
+    .from("catalogs")
+    .select("id, name, slug, description, image_url")
+    .is("parent_catalog_id", null)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
 
-  const total = catalogState.products.length;
-  const countsBySlug = {};
-  catalogState.products.forEach((p) => {
-    const slug = (p.categories && p.categories.slug) || null;
-    if (!slug) return;
-    countsBySlug[slug] = (countsBySlug[slug] || 0) + 1;
-  });
+async function fetchSubcatalogs(parentId) {
+  const { data, error } = await supabaseClient
+    .from("catalogs")
+    .select("id, name, slug, description, image_url")
+    .eq("parent_catalog_id", parentId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
 
-  filterEl.innerHTML = "";
+async function fetchProductsForCatalog(catalogId) {
+  const { data, error } = await supabaseClient
+    .from("products")
+    .select(
+      "id, name, slug, description, price, image_url, country, price_label, is_available, stock, catalog_id, catalogs ( name, slug )"
+    )
+    .eq("catalog_id", catalogId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
 
-  const allChip = document.createElement("button");
-  allChip.type = "button";
-  allChip.className = "chip" + (catalogState.activeCategorySlug === "" ? " active" : "");
-  allChip.setAttribute("role", "tab");
-  allChip.setAttribute("aria-selected", String(catalogState.activeCategorySlug === ""));
-  allChip.dataset.slug = "";
-  allChip.innerHTML = `Semua <span class="chip-count">${total}</span>`;
-  allChip.addEventListener("click", () => setActiveCategory("", filterEl));
-  filterEl.appendChild(allChip);
+async function fetchCatalogBySlug(slug, parentId) {
+  let query = supabaseClient
+    .from("catalogs")
+    .select("id, name, slug, description, image_url, parent_catalog_id")
+    .eq("slug", slug)
+    .eq("is_active", true);
+  query = parentId ? query.eq("parent_catalog_id", parentId) : query.is("parent_catalog_id", null);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data;
+}
 
-  catalogState.categories.forEach((category) => {
-    const count = countsBySlug[category.slug] || 0;
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "chip" + (catalogState.activeCategorySlug === category.slug ? " active" : "");
-    chip.setAttribute("role", "tab");
-    chip.setAttribute("aria-selected", String(catalogState.activeCategorySlug === category.slug));
-    chip.dataset.slug = category.slug;
-    chip.innerHTML = `${category.name} <span class="chip-count">${count}</span>`;
-    chip.addEventListener("click", () => setActiveCategory(category.slug, filterEl));
-    filterEl.appendChild(chip);
+function toggleSearchVisibility(show) {
+  const wrap = document.getElementById("productSearchWrap");
+  if (wrap) wrap.hidden = !show;
+}
+
+function pushCatalogUrl(params) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("cat");
+  url.searchParams.delete("sub");
+  if (params.cat) url.searchParams.set("cat", params.cat);
+  if (params.sub) url.searchParams.set("sub", params.sub);
+  history.pushState({}, "", url);
+}
+
+/** Renders "Etalase → Catalog → Sub-catalog", overflow-safe on mobile. */
+function renderBreadcrumb() {
+  const el = document.getElementById("catalogBreadcrumb");
+  if (!el) return;
+  el.innerHTML = "";
+
+  const crumbs = [{ label: "Etalase", onClick: () => showCatalogsLevel() }];
+  if (viewState.catalog) {
+    const catalog = viewState.catalog;
+    crumbs.push({ label: catalog.name, onClick: () => showSubcatalogsLevel(catalog) });
+  }
+  if (viewState.subcatalog) {
+    crumbs.push({ label: viewState.subcatalog.name, onClick: null });
+  }
+
+  crumbs.forEach((crumb, index) => {
+    if (index > 0) {
+      const sep = document.createElement("span");
+      sep.className = "crumb-sep";
+      sep.textContent = "→";
+      sep.setAttribute("aria-hidden", "true");
+      el.appendChild(sep);
+    }
+
+    const isCurrent = index === crumbs.length - 1;
+    if (isCurrent) {
+      const span = document.createElement("span");
+      span.className = "crumb-current";
+      span.textContent = crumb.label;
+      el.appendChild(span);
+    } else {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "crumb-link";
+      btn.textContent = crumb.label;
+      btn.addEventListener("click", crumb.onClick);
+      el.appendChild(btn);
+    }
   });
 }
 
-function setActiveCategory(slug, filterEl) {
-  catalogState.activeCategorySlug = slug;
-  renderCategoryChips(filterEl);
-  renderFilteredProducts();
+function updateBackButton() {
+  const btn = document.getElementById("catalogBackBtn");
+  if (!btn) return;
+
+  if (viewState.level === "catalogs") {
+    btn.hidden = true;
+    return;
+  }
+
+  btn.hidden = false;
+  btn.onclick = () => {
+    if (viewState.level === "subcatalogs") {
+      showCatalogsLevel();
+    } else if (viewState.level === "products") {
+      if (viewState.subcatalog) {
+        showSubcatalogsLevel(viewState.catalog);
+      } else {
+        showCatalogsLevel();
+      }
+    }
+  };
+}
+
+async function showCatalogsLevel(options = {}) {
+  viewState.level = "catalogs";
+  viewState.catalog = null;
+  viewState.subcatalog = null;
+  viewState.products = [];
+
+  renderBreadcrumb();
+  updateBackButton();
+  toggleSearchVisibility(false);
+  updateProductCountDisplays(0);
+
+  const stage = document.getElementById("catalogStage");
+  if (stage) {
+    showLoading(stage, "Memuat etalase...");
+    try {
+      const catalogs = await fetchTopCatalogs();
+      stage.innerHTML = "";
+      if (!catalogs.length) {
+        showMessage(stage, "Belum ada katalog.");
+      } else {
+        const grid = document.createElement("div");
+        grid.className = "product-grid catalog-grid";
+        catalogs.forEach((catalogItem) => {
+          grid.appendChild(renderCatalogCard(catalogItem, () => showSubcatalogsLevel(catalogItem)));
+        });
+        stage.appendChild(grid);
+      }
+    } catch (error) {
+      showMessage(stage, safeErrorMessage(error, "Gagal memuat katalog."));
+    }
+  }
+
+  if (!options.skipHistory) pushCatalogUrl({});
+}
+
+async function showSubcatalogsLevel(catalogItem, options = {}) {
+  viewState.level = "subcatalogs";
+  viewState.catalog = catalogItem;
+  viewState.subcatalog = null;
+
+  renderBreadcrumb();
+  updateBackButton();
+  toggleSearchVisibility(false);
+  updateProductCountDisplays(0);
+
+  const stage = document.getElementById("catalogStage");
+  try {
+    const subcatalogs = await fetchSubcatalogs(catalogItem.id);
+
+    if (subcatalogs.length === 0) {
+      // No sub-catalogs: treat this catalog itself as a leaf and show
+      // its products directly (keeps flat/legacy catalogs working).
+      await showProductsLevel(catalogItem, null, { skipHistory: true });
+      if (!options.skipHistory) pushCatalogUrl({ cat: catalogItem.slug });
+      return;
+    }
+
+    if (stage) {
+      stage.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.className = "product-grid catalog-grid";
+      subcatalogs.forEach((sub) => {
+        grid.appendChild(renderCatalogCard(sub, () => showProductsLevel(catalogItem, sub)));
+      });
+      stage.appendChild(grid);
+    }
+  } catch (error) {
+    if (stage) showMessage(stage, safeErrorMessage(error, "Gagal memuat sub-katalog."));
+  }
+
+  if (!options.skipHistory) pushCatalogUrl({ cat: catalogItem.slug });
+}
+
+async function showProductsLevel(catalogItem, subcatalogItem, options = {}) {
+  viewState.level = "products";
+  viewState.catalog = catalogItem;
+  viewState.subcatalog = subcatalogItem || null;
+  viewState.query = "";
+
+  const searchInput = document.getElementById("productSearchInput");
+  if (searchInput) searchInput.value = "";
+
+  renderBreadcrumb();
+  updateBackButton();
+  toggleSearchVisibility(true);
+
+  const stage = document.getElementById("catalogStage");
+  const leafId = (subcatalogItem || catalogItem).id;
+
+  if (stage) {
+    showLoading(stage, "Memuat produk...");
+    try {
+      const products = await fetchProductsForCatalog(leafId);
+      viewState.products = products;
+      stage.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.className = "product-grid";
+      grid.id = "productGrid";
+      stage.appendChild(grid);
+      renderFilteredProducts();
+    } catch (error) {
+      showMessage(stage, safeErrorMessage(error, "Gagal memuat produk. Coba muat ulang halaman."));
+    }
+  }
+
+  if (!options.skipHistory) {
+    pushCatalogUrl({ cat: catalogItem.slug, sub: subcatalogItem ? subcatalogItem.slug : undefined });
+  }
 }
 
 function renderFilteredProducts() {
   const gridEl = document.getElementById("productGrid");
   if (!gridEl) return;
 
-  const query = catalogState.query.trim().toLowerCase();
-  const slug = catalogState.activeCategorySlug;
-
-  const filtered = catalogState.products.filter((product) => {
-    const matchesCategory = !slug || (product.categories && product.categories.slug === slug);
-    const matchesQuery =
-      !query ||
+  const query = viewState.query.trim().toLowerCase();
+  const filtered = viewState.products.filter((product) => {
+    if (!query) return true;
+    return (
       product.name.toLowerCase().includes(query) ||
-      (product.description && product.description.toLowerCase().includes(query));
-    return matchesCategory && matchesQuery;
+      (product.description && product.description.toLowerCase().includes(query))
+    );
   });
 
   gridEl.innerHTML = "";
   if (filtered.length === 0) {
-    showMessage(gridEl, "Tidak ada produk yang cocok.");
+    showMessage(
+      gridEl,
+      viewState.products.length ? "Tidak ada produk yang cocok." : "Belum ada produk di katalog ini."
+    );
   } else {
     filtered.forEach((product) => gridEl.appendChild(renderProductCard(product)));
   }
   updateProductCountDisplays(filtered.length);
 }
 
-async function loadCategoriesData() {
-  try {
-    const { data, error } = await supabaseClient
-      .from("categories")
-      .select("id, name, slug")
-      .order("name", { ascending: true });
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    safeErrorMessage(error, "Gagal memuat kategori.");
-    return [];
+/** Re-derives the current view purely from the URL's ?cat=&sub= params. */
+async function restoreCatalogFromUrl(options = {}) {
+  const params = new URLSearchParams(window.location.search);
+  const catSlug = params.get("cat");
+  const subSlug = params.get("sub");
+
+  if (!catSlug) {
+    await showCatalogsLevel({ skipHistory: true });
+    return;
   }
-}
 
-async function loadProductsInto(gridEl, filterEl) {
-  showLoading(gridEl, "Memuat produk...");
   try {
-    const [{ data, error }, categories] = await Promise.all([
-      supabaseClient
-        .from("products")
-        .select("name, slug, description, price, image_url, country, price_label, is_available, stock, categories ( name, slug )")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false }),
-      loadCategoriesData(),
-    ]);
-
-    if (error) throw error;
-
-    catalogState.products = data || [];
-    catalogState.categories = categories;
-
-    if (catalogState.products.length === 0) {
-      showMessage(gridEl, "Belum ada produk.");
-      updateProductCountDisplays(0);
-      renderCategoryChips(filterEl);
+    const catalogItem = await fetchCatalogBySlug(catSlug, null);
+    if (!catalogItem) {
+      await showCatalogsLevel({ skipHistory: true });
       return;
     }
 
-    renderCategoryChips(filterEl);
-    renderFilteredProducts();
+    if (subSlug) {
+      const sub = await fetchCatalogBySlug(subSlug, catalogItem.id);
+      if (!sub) {
+        await showSubcatalogsLevel(catalogItem, { skipHistory: true });
+        return;
+      }
+      await showProductsLevel(catalogItem, sub, { skipHistory: true });
+    } else {
+      await showSubcatalogsLevel(catalogItem, { skipHistory: true });
+    }
   } catch (error) {
-    const message = safeErrorMessage(error, "Gagal memuat produk. Coba muat ulang halaman.");
-    showMessage(gridEl, message);
+    console.error(error);
+    await showCatalogsLevel({ skipHistory: true });
   }
 }
 
 /* ------------------------------------------------------------
  * Product quick-view bottom sheet (index.html only).
- * Reuses the product list already fetched for the grid — no
- * extra request needed to show name/price/description/image.
  * ------------------------------------------------------------ */
 let sheetState = {
   whatsapp: null,
   storeName: "",
   refs: null,
-  openSlug: null,
 };
 
 function getSheetRefs() {
@@ -365,8 +625,9 @@ function openProductSheet(product, options = {}) {
   const refs = getSheetRefs();
   if (!refs || !product) return;
 
-  if (product.image_url) {
-    refs.image.src = product.image_url;
+  const safeSheetImageUrl = sanitizeUrl(product.image_url);
+  if (safeSheetImageUrl) {
+    refs.image.src = safeSheetImageUrl;
     refs.image.alt = product.name;
     refs.image.onerror = () => {
       refs.image.src = "assets/placeholder.svg";
@@ -376,7 +637,7 @@ function openProductSheet(product, options = {}) {
     refs.image.alt = product.name;
   }
 
-  refs.category.textContent = (product.categories && product.categories.name) || "Produk Digital";
+  refs.category.textContent = (product.catalogs && product.catalogs.name) || "Produk Digital";
   refs.name.textContent = product.name;
   refs.description.textContent = product.description || APP_CONFIG.productDescriptionFallback;
 
@@ -432,12 +693,11 @@ Terima kasih, Admin!`;
   refs.overlay.hidden = false;
   requestAnimationFrame(() => refs.overlay.classList.add("open"));
   document.body.style.overflow = "hidden";
-  sheetState.openSlug = product.slug;
 
   if (!options.skipHistory) {
     const url = new URL(window.location.href);
     url.searchParams.set("produk", product.slug);
-    history.pushState({ produkSheet: product.slug }, "", url);
+    history.pushState({}, "", url);
   }
 }
 
@@ -447,7 +707,6 @@ function closeProductSheet(options = {}) {
 
   refs.overlay.classList.remove("open");
   document.body.style.overflow = "";
-  sheetState.openSlug = null;
   setTimeout(() => {
     refs.overlay.hidden = true;
   }, 320);
@@ -458,6 +717,24 @@ function closeProductSheet(options = {}) {
       url.searchParams.delete("produk");
       history.pushState({}, "", url);
     }
+  }
+}
+
+/** Deep-link/independent lookup: fetches a single product by slug and opens the sheet. */
+async function openProductSheetBySlug(slug, options = {}) {
+  try {
+    const { data: product, error } = await supabaseClient
+      .from("products")
+      .select(
+        "id, name, slug, description, price, image_url, country, price_label, is_available, stock, catalog_id, catalogs ( name, slug )"
+      )
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (error || !product) return;
+    openProductSheet(product, options);
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -475,15 +752,6 @@ function initProductSheet() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !refs.overlay.hidden) closeProductSheet();
   });
-  window.addEventListener("popstate", () => {
-    const slug = new URLSearchParams(window.location.search).get("produk");
-    if (!slug) {
-      closeProductSheet({ skipHistory: true });
-      return;
-    }
-    const product = catalogState.products.find((p) => p.slug === slug);
-    if (product) openProductSheet(product, { skipHistory: true });
-  });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -492,12 +760,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const descEl = document.getElementById("storeDescription");
   const footerNameEl = document.getElementById("footerStoreName");
   const footerWaEl = document.getElementById("footerWhatsApp");
-  const gridEl = document.getElementById("productGrid");
-  const filterEl = document.getElementById("categoryFilter");
-  const searchEl = document.getElementById("productSearchInput");
   const bannerWrapEl = document.getElementById("storeBanner");
   const bannerImgEl = document.getElementById("storeBannerImage");
   const heroMediaWrapEl = document.getElementById("heroMedia");
+  const searchEl = document.getElementById("productSearchInput");
 
   initProductSheet();
   initAnnouncementBanner();
@@ -508,19 +774,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     sheetState.storeName = settings.storeName;
   }
 
-  if (gridEl) await loadProductsInto(gridEl, filterEl);
+  loadHeroProductCount();
 
-  // Deep link support: open the sheet directly if ?produk=slug is in the URL.
+  // Initial render: restore whichever catalog/sub-catalog level (if any)
+  // is encoded in the URL, then open the quick-view sheet on top of it
+  // if a ?produk= deep link is also present.
+  await restoreCatalogFromUrl({ skipHistory: true });
+
   const initialSlug = new URLSearchParams(window.location.search).get("produk");
   if (initialSlug) {
-    const product = catalogState.products.find((p) => p.slug === initialSlug);
-    if (product) openProductSheet(product, { skipHistory: true });
+    openProductSheetBySlug(initialSlug, { skipHistory: true });
   }
 
   if (searchEl) {
     searchEl.addEventListener("input", (event) => {
-      catalogState.query = event.target.value;
+      viewState.query = event.target.value;
       renderFilteredProducts();
     });
   }
+
+  window.addEventListener("popstate", () => {
+    const slug = new URLSearchParams(window.location.search).get("produk");
+    if (!slug) {
+      closeProductSheet({ skipHistory: true });
+    } else {
+      openProductSheetBySlug(slug, { skipHistory: true });
+    }
+    restoreCatalogFromUrl({ skipHistory: true });
+  });
 });

@@ -139,6 +139,26 @@ function normalizeWhatsAppNumber(raw) {
   return digits;
 }
 
+/**
+ * Only allow http(s) and relative/root-relative URLs for anything an admin
+ * can type into a URL field (product image, QRIS image, banner, hero media)
+ * and that we then set as an <img>/<a> src or href. Blocks `javascript:`,
+ * `data:text/html`, and similar schemes that would otherwise execute when
+ * clicked or rendered. Returns "" (safe no-op) for anything else.
+ */
+function sanitizeUrl(rawUrl) {
+  const url = String(rawUrl || "").trim();
+  if (!url) return "";
+  if (url.startsWith("/") || url.startsWith("./") || url.startsWith("../")) return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return url;
+  } catch (error) {
+    return "";
+  }
+  return "";
+}
+
 /** Build a wa.me link, optionally with a prefilled message. */
 function buildWhatsAppLink(rawNumber, message) {
   const number = normalizeWhatsAppNumber(rawNumber);

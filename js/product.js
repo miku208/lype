@@ -37,8 +37,9 @@ function renderProduct(product, storeSettings, refs) {
   refs.detail.hidden = false;
   refs.notFound.hidden = true;
 
-  if (product.image_url) {
-    refs.image.src = product.image_url;
+  const safeProductImageUrl = sanitizeUrl(product.image_url);
+  if (safeProductImageUrl) {
+    refs.image.src = safeProductImageUrl;
     refs.image.alt = product.name;
     refs.image.onerror = () => {
       refs.image.src = "assets/placeholder.svg";
@@ -57,7 +58,7 @@ function renderProduct(product, storeSettings, refs) {
   }
 
   refs.category.textContent =
-    (product.categories && product.categories.name) || "Produk Digital";
+    (product.catalogs && product.catalogs.name) || "Produk Digital";
   refs.name.textContent = product.name;
 
   const priceInfo = resolveProductPriceDisplay(product);
@@ -147,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const [{ data: product, error: productError }, { data: settings }] = await Promise.all([
       supabaseClient
         .from("products")
-        .select("name, slug, description, price, image_url, country, price_label, is_available, stock, categories ( name, slug )")
+        .select("name, slug, description, price, image_url, country, price_label, is_available, stock, catalog_id, catalogs ( name, slug )")
         .eq("slug", slug)
         .eq("is_active", true)
         .maybeSingle(),
