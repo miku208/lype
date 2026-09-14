@@ -21,7 +21,7 @@
       <nav class="sidebar-nav" aria-label="Navigasi admin">
         <a href="#overview" data-nav="overview" class="active">Overview</a>
         <a href="#products" data-nav="products">Products</a>
-        <a href="#categories" data-nav="categories">Categories</a>
+        <a href="#catalog" data-nav="catalog">Catalog</a>
         <a href="#settings" data-nav="settings">Store Settings</a>
       </nav>
       <button class="sidebar-logout" id="logoutBtn" type="button">Logout</button>
@@ -61,9 +61,9 @@
                 <span class="stat-sub">Disembunyikan dari katalog</span>
               </div>
               <div class="stat-card">
-                <span class="stat-label">Categories</span>
+                <span class="stat-label">Catalogs</span>
                 <strong id="statTotalCategories">–</strong>
-                <span class="stat-sub">Total kategori</span>
+                <span class="stat-sub">Total katalog + sub-katalog</span>
               </div>
             </div>
           </section>
@@ -90,17 +90,17 @@
             <p class="empty-row" id="productEmptyState" hidden></p>
           </section>
 
-          <section class="admin-section" id="categories">
+          <section class="admin-section" id="catalog">
             <div class="section-header-row">
               <div class="heading-group">
-                <h2>Categories</h2>
-                <p>Kelola kategori untuk filter katalog publik.</p>
+                <h2>Catalog Management</h2>
+                <p>Katalog bertingkat: katalog utama → sub-catalog → produk. Publik hanya melihat produk setelah membuka sub-catalog (atau langsung di katalog, jika katalog itu tidak punya sub-catalog).</p>
               </div>
-              <button class="btn sm" id="addCategoryBtn" type="button">+ Add Category</button>
+              <button class="btn sm" id="addCatalogBtn" type="button">+ Add Catalog</button>
             </div>
 
-            <div class="category-manage-list" id="categoryManageList"></div>
-            <p class="empty-row" id="categoryEmptyState" hidden></p>
+            <div class="catalog-manage-list" id="catalogManageList"></div>
+            <p class="empty-row" id="catalogEmptyState" hidden></p>
           </section>
 
           <section class="admin-section" id="settings">
@@ -210,10 +210,17 @@
           <p class="hint">Kosongkan untuk menampilkan harga normal di atas. Diisi untuk mengganti tampilan harga (tidak mengubah harga asli).</p>
         </div>
         <div class="field">
-          <label for="productCategoryInput">Category</label>
-          <select id="productCategoryInput" name="categoryId">
-            <option value="">Tanpa kategori</option>
+          <label for="productCatalogInput">Catalog</label>
+          <select id="productCatalogInput" name="catalogId" required>
+            <option value="">Pilih katalog...</option>
           </select>
+        </div>
+        <div class="field">
+          <label for="productSubCatalogInput">Sub-Catalog</label>
+          <select id="productSubCatalogInput" name="subCatalogId" disabled>
+            <option value="">(Langsung di katalog ini — tanpa sub-catalog)</option>
+          </select>
+          <p class="hint">Pilih catalog dulu. Jika catalog tidak punya sub-catalog, produk otomatis tersimpan langsung di catalog itu.</p>
         </div>
         <div class="field" id="productCountryField">
           <label for="productCountryInput">Negara NOKOS</label>
@@ -267,25 +274,56 @@
     </div>
   </div>
 
-  <!-- Add/Edit category modal -->
-  <div class="modal-overlay" id="categoryModal" hidden>
+  <!-- Add/Edit catalog (and sub-catalog) modal -->
+  <div class="modal-overlay" id="catalogModal" hidden>
     <div class="modal-card">
-      <h2 id="categoryModalTitle">Add Category</h2>
-      <p class="modal-subtitle">Kategori digunakan sebagai filter di katalog publik.</p>
-      <form id="categoryForm" novalidate>
+      <h2 id="catalogModalTitle">Add Catalog</h2>
+      <p class="modal-subtitle">Katalog utama tampil sebagai "Etalase" di halaman publik. Pilih Parent Catalog untuk membuat sub-catalog di dalamnya.</p>
+      <form id="catalogForm" novalidate>
         <div class="field">
-          <label for="categoryNameInput">Category Name</label>
-          <input type="text" id="categoryNameInput" name="name" required />
+          <label for="catalogParentInput">Parent Catalog</label>
+          <select id="catalogParentInput" name="parentCatalogId">
+            <option value="">— Top-level catalog (tanpa induk) —</option>
+          </select>
+          <p class="hint">Kosongkan untuk membuat katalog utama baru (mis. NOKOS). Pilih induk untuk membuat sub-catalog (mis. NOKOS Indonesia).</p>
         </div>
         <div class="field">
-          <label for="categorySlugInput">Slug</label>
-          <input type="text" id="categorySlugInput" name="slug" required />
-          <p class="hint">Otomatis dibuat dari nama, tapi bisa diubah manual. Harus unik.</p>
+          <label for="catalogNameInput">Nama</label>
+          <input type="text" id="catalogNameInput" name="name" required />
         </div>
-        <p class="form-error" id="categoryFormError"></p>
+        <div class="field">
+          <label for="catalogSlugInput">Slug</label>
+          <input type="text" id="catalogSlugInput" name="slug" required />
+          <p class="hint">Otomatis dibuat dari nama, tapi bisa diubah manual. Harus unik di antara sesama level (parent yang sama).</p>
+        </div>
+        <div class="field">
+          <label for="catalogDescriptionInput">Deskripsi</label>
+          <textarea id="catalogDescriptionInput" name="description"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Gambar Katalog</label>
+          <div class="image-upload-row">
+            <div class="image-preview" id="catalogImagePreview">Belum ada gambar</div>
+            <div class="controls">
+              <label class="file-input-label">
+                Upload Image
+                <input type="file" id="catalogImageFileInput" name="imageFile" accept="image/*" />
+              </label>
+              <input type="url" id="catalogImageUrlInput" name="imageUrl" placeholder="atau tempel Image URL" />
+              <p class="upload-status" id="catalogUploadStatus"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkbox-field">
+          <input type="checkbox" id="catalogIsActiveInput" name="isActive" checked />
+          <label for="catalogIsActiveInput">Active (tampil di katalog publik)</label>
+        </div>
+        <p class="form-error" id="catalogFormError"></p>
         <div class="modal-actions">
-          <button type="submit" class="btn">Save Category</button>
-          <button type="button" class="btn secondary" id="cancelCategoryForm">Cancel</button>
+          <button type="submit" class="btn">Save Catalog</button>
+          <button type="button" class="btn secondary" id="cancelCatalogForm">Cancel</button>
         </div>
       </form>
     </div>
