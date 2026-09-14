@@ -100,19 +100,17 @@
           <span class="count-chip" id="productCountChip" hidden><strong id="productCountValue">0</strong>&nbsp;produk</span>
         </div>
 
-        <div class="catalog-controls">
-          <div class="search-box">
-            <input type="search" id="productSearchInput" placeholder="Cari produk digital..." aria-label="Cari produk" />
-          </div>
-          <div class="category-filter" id="categoryFilter" role="tablist" aria-label="Filter kategori">
-            <button type="button" class="chip active" data-slug="" role="tab" aria-selected="true">
-              Semua <span class="chip-count" id="chipCountAll">0</span>
-            </button>
+        <nav class="breadcrumb" id="catalogBreadcrumb" aria-label="Breadcrumb"></nav>
+
+        <div class="catalog-toolbar">
+          <button type="button" class="back-pill" id="catalogBackBtn" hidden>← Kembali</button>
+          <div class="search-box" id="productSearchWrap" hidden>
+            <input type="search" id="productSearchInput" placeholder="Cari produk di katalog ini..." aria-label="Cari produk" />
           </div>
         </div>
 
-        <div class="product-grid" id="productGrid">
-          <p class="state-message loading-text">Memuat produk...</p>
+        <div class="catalog-stage" id="catalogStage">
+          <p class="state-message loading-text">Memuat etalase...</p>
         </div>
 
         <!-- Pengumuman: sengaja diletakkan di bawah katalog, bukan di

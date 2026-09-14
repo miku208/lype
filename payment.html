@@ -75,6 +75,7 @@
             <div class="qris-frame" id="qrisFrame" hidden>
               <img id="qrisImage" src="" alt="QRIS pembayaran" />
             </div>
+            <a class="btn secondary sm" id="downloadQrisBtn" href="#" download="qris-lyppe-store.png" hidden>⬇️ Download QRIS</a>
             <p class="method-empty" id="qrisEmptyState" hidden>QRIS belum tersedia.</p>
           </div>
 
@@ -91,6 +92,11 @@
 
           <div class="payment-note" id="paymentNoteBox">
             <p id="paymentNoteText">NOTE : JIKA SUDAH BAYAR - HUBUNGI ADMIN</p>
+          </div>
+
+          <div class="request-customer-block">
+            <label for="customerRequestInput">Request Customer <span class="optional-tag">(opsional)</span></label>
+            <textarea id="customerRequestInput" rows="3" maxlength="500" placeholder="Tulis request tambahan jika ada..."></textarea>
           </div>
 
           <a class="btn full" id="contactAdminBtn" href="#" target="_blank" rel="noopener">

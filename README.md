@@ -12,8 +12,13 @@ hanyalah static file server untuk development lokal — bukan backend aplikasi.
 
 1. Buat project baru di [supabase.com](https://supabase.com).
 2. Buka **SQL Editor**, tempel seluruh isi `supabase/schema.sql`, lalu **Run**.
-   Ini membuat tabel `categories`, `products`, `store_settings`, `profiles`,
-   RLS policies, dan beberapa kategori contoh.
+   Ini membuat tabel `categories` (legacy, tetap ada), `catalogs` (sistem
+   katalog bertingkat: katalog utama + sub-catalog), `products`,
+   `store_settings`, `profiles`, RLS policies, dan (jika kamu sudah punya
+   data lama) otomatis memigrasikan `categories` yang ada jadi katalog
+   utama level 1 tanpa menghapus apa pun. File ini aman dijalankan ulang
+   kapan saja (idempotent) — juga dipakai untuk upgrade instalasi lama ke
+   sistem katalog bertingkat.
 3. Buka **Project Settings → API**, salin **Project URL** dan **anon/public key**.
 
 ## 2. Buat user admin (jangan hardcode password!)
@@ -51,6 +56,22 @@ npm run dev
 Buka:
 - Storefront: http://localhost:3000
 - Admin: http://localhost:3000/manage-x7k/
+
+## 4b. Katalog bertingkat (Catalog → Sub-Catalog → Produk)
+
+Dari dashboard admin (`Catalog` di sidebar):
+
+1. **Add Catalog** — buat katalog utama (mis. `NOKOS`, `APK PREMIUM`).
+2. Di dalam katalog itu, klik **+ Add Sub-Catalog** — buat sub-catalog
+   (mis. `NOKOS Indonesia`, `NOKOS Philippines`).
+3. Saat **Add Product**, pilih **Catalog** lalu **Sub-Catalog**. Kalau
+   sebuah katalog tidak punya sub-catalog sama sekali, produk otomatis
+   tersimpan langsung di katalog itu (level 1 jadi leaf) — jadi katalog
+   lama/flat tetap berfungsi tanpa harus dibuatkan sub-catalog.
+
+Publik akan melihat: **Etalase → klik Catalog → klik Sub-Catalog → Produk**,
+lengkap dengan breadcrumb dan tombol "← Kembali". Produk dari katalog lain
+tidak pernah ikut tercampur.
 
 ## 5. Deploy sebagai static site
 
@@ -109,7 +130,7 @@ lyppe-store/
 ## Checklist keamanan
 
 - [x] Tidak ada `service_role key` di frontend
-- [x] RLS aktif di semua tabel (`categories`, `products`, `store_settings`, `profiles`)
+- [x] RLS aktif di semua tabel (`categories`, `catalogs`, `products`, `store_settings`, `profiles`)
 - [x] Admin authorization memakai `profiles.role` + RLS, bukan localStorage
 - [x] Public user tidak bisa INSERT/UPDATE/DELETE produk, kategori, atau settings
 - [x] `localStorage` tidak pernah dipercaya sebagai sumber otorisasi
