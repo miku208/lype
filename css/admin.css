@@ -552,11 +552,73 @@ h1, h2, h3 {
   gap: 16px;
 }
 
-/* ---------- category management list ---------- */
+/* ---------- category management list (legacy, kept for reference) ---------- */
 .category-manage-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* ---------- catalog management (nested: catalog -> sub-catalog) ---------- */
+.catalog-manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.catalog-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.catalog-row.sub {
+  background: var(--surface-2);
+  margin-left: 20px;
+  border-style: dashed;
+}
+
+.catalog-row-thumb {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: var(--muted-soft);
+}
+
+.catalog-row-thumb.sm {
+  width: 36px;
+  height: 36px;
+}
+
+.catalog-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.catalog-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .category-row {
